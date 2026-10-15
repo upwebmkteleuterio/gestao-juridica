@@ -29,3 +29,11 @@ dist-ssr
 /playwright/.cache/
 .last-run.json
 .dyad/
+
+# Documentos de referência anexados (não versionar)
+/UI_Kit_Magalhaes_Gomes.html
+/GUIA-PARA-IA.md
+/blueprint_de_arquitetura_backend.md
+/mapa_de_fluxo_ux_ui_sistema_jur_dico_djen_ia.md
+/docs/referencias/
+*.reference.md

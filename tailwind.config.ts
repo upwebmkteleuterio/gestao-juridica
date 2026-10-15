@@ -1,5 +1,9 @@
 import type { Config } from "tailwindcss";
 
+/**
+ * Tokens de design centralizados — UI Kit Magalhães & Gomes.
+ * Alterar fonte, cores da marca ou raios aqui reflete em todo o projeto.
+ */
 export default {
   darkMode: ["class"],
   content: [
@@ -18,6 +22,11 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['"Segoe UI"', "Arial", "Helvetica", "sans-serif"],
+        serif: ["Georgia", "Cambria", "serif"],
+        mono: ["Consolas", "ui-monospace", "monospace"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -52,6 +61,37 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        /* Marca — fixa nos dois temas */
+        navy: {
+          950: "#101d30",
+          900: "#172940",
+          800: "#243c59",
+          700: "#31506f",
+          100: "#eaf0f7",
+        },
+        gold: {
+          600: "#9a742c",
+          500: "#c5a15c",
+          400: "#d5b477",
+          100: "#f7f1e5",
+        },
+        /* Semânticas adaptáveis ao tema */
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          bg: "hsl(var(--success-bg))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          bg: "hsl(var(--warning-bg))",
+        },
+        danger: {
+          DEFAULT: "hsl(var(--danger))",
+          bg: "hsl(var(--danger-bg))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          bg: "hsl(var(--info-bg))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -64,31 +104,44 @@ export default {
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "6px",
+        md: "10px",
+        lg: "16px",
+        xl: "20px",
+        DEFAULT: "10px",
+      },
+      boxShadow: {
+        panel: "0 18px 50px rgba(19, 40, 63, 0.07)",
+        drawer: "-18px 0 50px rgba(19, 40, 63, 0.18)",
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "slide-in-right": {
+          from: { transform: "translateX(100%)" },
+          to: { transform: "translateX(0)" },
+        },
+        "rise-in": {
+          from: { opacity: "0", transform: "translateY(10px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in": "fade-in 0.2s ease-out",
+        "slide-in-right": "slide-in-right 0.25s ease-out",
+        "rise-in": "rise-in 0.35s ease-out both",
       },
     },
   },
