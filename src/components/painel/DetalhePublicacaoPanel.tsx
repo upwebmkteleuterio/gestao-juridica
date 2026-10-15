@@ -3,6 +3,7 @@ import {
   ChevronUp,
   Copy,
   ExternalLink,
+  RefreshCw,
   Send,
   Sparkles,
   Undo2,
@@ -14,6 +15,7 @@ import {
   Alert,
   Badge,
   Button,
+  EmptyState,
   FormField,
   IconButton,
   Input,
@@ -25,6 +27,8 @@ import {
 } from "@/components/kit";
 import {
   useAdvogados,
+  useAnalisarPublicacao,
+  useAnalisesIa,
   useDispensarIntimacao,
   useEnviarParaEsteira,
   useIntimacao,
@@ -33,7 +37,7 @@ import {
   useRegistrarEvento,
 } from "@/hooks";
 import { contarDiasUteis } from "@/lib/datas";
-import { formatarData } from "@/lib/format";
+import { formatarData, formatarDataHora } from "@/lib/format";
 import { useUsuarioAtual } from "@/hooks";
 
 export interface DetalhePublicacaoPanelProps {
@@ -66,6 +70,8 @@ export function DetalhePublicacaoPanel({
   const dispensar = useDispensarIntimacao();
   const reativar = useReativarIntimacao();
   const registrarEvento = useRegistrarEvento();
+  const analisar = useAnalisarPublicacao();
+  const analises = useAnalisesIa(intimacao?.raw_id);
 
   /* Rascunho editável do parecer da IA */
   const [acao, setAcao] = useState("");
@@ -86,6 +92,12 @@ export function DetalhePublicacaoPanel({
   }, [intimacao]);
 
   const status = intimacao?.status_fluxo;
+  const statusAnalise =
+    intimacao?.status_analise === "sucesso"
+      ? { rotulo: "Análise concluída", variant: "success" as const }
+      : intimacao?.status_analise === "falha"
+        ? { rotulo: "Falha na análise", variant: "danger" as const }
+        : { rotulo: "Análise pendente", variant: "neutral" as const };
   const diasUteis = contarDiasUteis(
     intimacao?.data_disponibilizacao,
     fatal || intimacao?.data_fatal_calculada,
@@ -128,6 +140,31 @@ export function DetalhePublicacaoPanel({
       antes,
       depois,
     });
+  }
+
+  /* A reanálise nunca apaga o texto original: só acrescenta uma linha no histórico. */
+  async function rodarAnalise() {
+    if (!intimacao) return;
+    try {
+      const resultado = await analisar.mutateAsync(intimacao.raw_id);
+      const falhouTudo = resultado.falhas > 0 && resultado.sucessos === 0;
+      if (falhouTudo) {
+        toast.error("A análise falhou. O motivo ficou registrado no histórico.");
+      } else {
+        toast.success(resultado.mensagem || "Análise concluída.");
+      }
+      auditar(
+        "analise_ia_executada",
+        intimacao.status_analise,
+        falhouTudo ? "falha" : "sucesso",
+      );
+    } catch (erro) {
+      toast.error(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível analisar a publicação.",
+      );
+    }
   }
 
   /* ---------------- Ações (lógica condicional por status) ---------------- */
@@ -318,10 +355,29 @@ export function DetalhePublicacaoPanel({
 
           {/* Parecer da IA — campos editáveis */}
           <section>
-            <p className="eyebrow mb-3 flex items-center gap-2 text-gold-600 dark:text-gold-400">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              Parecer da IA · DeepSeek
-            </p>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="eyebrow flex items-center gap-2 text-gold-600 dark:text-gold-400">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                Parecer da IA · DeepSeek
+              </p>
+              <div className="flex items-center gap-2">
+                <Badge variant={statusAnalise.variant}>
+                  {statusAnalise.rotulo}
+                </Badge>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={analisar.isPending}
+                  disabled={ocupado}
+                  onClick={rodarAnalise}
+                >
+                  <RefreshCw className="h-3 w-3" aria-hidden="true" />
+                  {intimacao.status_analise === "pendente"
+                    ? "Analisar com IA"
+                    : "Reanalisar"}
+                </Button>
+              </div>
+            </div>
             <div className="space-y-4">
               <FormField
                 label="Ação jurídica sugerida"
@@ -364,7 +420,95 @@ export function DetalhePublicacaoPanel({
                   onChange={(evento) => setResumo(evento.target.value)}
                 />
               </FormField>
+
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Prazo indicado no texto
+                </p>
+                <p className="mt-0.5 text-[12px] font-medium">
+                  {intimacao.prazo_extraido_texto || "não identificado"}
+                </p>
+              </div>
+
+              {intimacao.trecho_fundamentador ? (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Trecho que fundamenta
+                  </p>
+                  <blockquote className="mt-1 border-l-2 border-gold-400 pl-3 font-serif text-[12px] italic leading-relaxed text-muted-foreground">
+                    {intimacao.trecho_fundamentador}
+                  </blockquote>
+                </div>
+              ) : null}
+
+              {intimacao.pendencias.length > 0 ? (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Pendências
+                  </p>
+                  <ul className="mt-1.5 space-y-1">
+                    {intimacao.pendencias.map((pendencia) => (
+                      <li
+                        key={pendencia}
+                        className="flex gap-2 text-[12px] leading-relaxed"
+                      >
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-warning" />
+                        {pendencia}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
+          </section>
+
+          <div className="border-t border-border" />
+
+          {/* Histórico de análises — uma linha por tentativa, inclusive falhas */}
+          <section>
+            <p className="label-kit mb-3">Histórico de análises</p>
+            {analises.isLoading ? (
+              <Skeleton className="h-16" />
+            ) : analises.data && analises.data.length > 0 ? (
+              <ol className="space-y-2">
+                {analises.data.map((item) => (
+                  <li
+                    key={item.id}
+                    className="rounded-md border border-border p-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={item.status === "sucesso" ? "success" : "danger"}
+                        >
+                          {item.status === "sucesso" ? "Sucesso" : "Falha"}
+                        </Badge>
+                        <span className="text-[11px] text-muted-foreground">
+                          {item.modelo}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground">
+                        {formatarDataHora(item.criado_em)}
+                      </span>
+                    </div>
+                    {item.motivo_falha ? (
+                      <p className="mt-2 text-[12px] leading-relaxed text-danger">
+                        {item.motivo_falha}
+                      </p>
+                    ) : (
+                      <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
+                        {item.resumo || "—"}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <EmptyState
+                titulo="Nenhuma análise registrada"
+                descricao="Esta publicação ainda não passou pela IA. Use o botão acima para analisar agora."
+              />
+            )}
           </section>
 
           <div className="border-t border-border" />

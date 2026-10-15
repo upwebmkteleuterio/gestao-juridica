@@ -1,0 +1,1 @@
+alter table public.capturas_djen add constraint capturas_djen_meio_check check (meio is null or meio in ('D', 'E'))

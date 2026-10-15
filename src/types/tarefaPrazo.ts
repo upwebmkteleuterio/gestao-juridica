@@ -41,9 +41,6 @@ export type TarefaPrazoInput = Omit<
   "id" | "created_at" | "updated_at"
 >;
 
-/** Escopo do quadro: fila pessoal do usuário ou pauta geral do escritório. */
-export type EscopoEsteira = "meus" | "geral";
-
 /** Pílulas de urgência dos controles superiores da Esteira (Tela 2). */
 export type UrgenciaEsteira =
   | "todos"
@@ -53,13 +50,12 @@ export type UrgenciaEsteira =
   | "em_dia";
 
 /**
- * Parâmetros aceitos pela consulta do Kanban. O recorte (escopo e urgência)
- * é resolvido no serviço, nunca na tela.
+ * Parâmetros aceitos pela consulta do Kanban. O recorte por responsável e
+ * urgência é resolvido no serviço, nunca na tela.
  */
 export interface ConsultaEsteira {
-  escopo?: EscopoEsteira;
-  /** `advogado_id` aplicado quando o escopo é `meus`. */
-  advogadoId?: ID | null;
+  /** `null`/`undefined` = todos os responsáveis. */
+  responsavelId?: ID | null;
   urgencia?: UrgenciaEsteira;
 }
 

@@ -32,7 +32,7 @@ export function useTarefasPrazos() {
   });
 }
 
-/** Kanban da Tela 2 — escopo e urgência vão na chave da consulta. */
+/** Kanban da Tela 2 — responsável e urgência vão na chave da consulta. */
 export function useEsteira(consulta: ConsultaEsteira) {
   return useQuery({
     queryKey: tarefasKeys.esteira(consulta),

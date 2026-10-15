@@ -1,0 +1,1 @@
+create index analises_ia_raw_idx on public.analises_ia (raw_id, criado_em desc)

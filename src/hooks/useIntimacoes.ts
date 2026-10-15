@@ -17,6 +17,7 @@ export const intimacoesKeys = {
   consulta: (consulta: ConsultaIntimacoes) =>
     ["intimacoes", "consulta", consulta] as const,
   detalhe: (id: string) => ["intimacoes", "detalhe", id] as const,
+  analises: (rawId: string) => ["intimacoes", "analises", rawId] as const,
   indicadores: ["intimacoes", "indicadores"] as const,
   tribunais: ["intimacoes", "tribunais"] as const,
   pendentes: (consulta: ConsultaIntimacoes) =>
@@ -98,6 +99,27 @@ export function useAtualizarIntimacao() {
       intimacoesService.update(id, input),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
+  });
+}
+
+/** Histórico de tentativas de análise por IA de uma publicação. */
+export function useAnalisesIa(rawId?: string) {
+  return useQuery({
+    queryKey: intimacoesKeys.analises(rawId ?? ""),
+    queryFn: () => intimacoesService.listarAnalises(rawId as string),
+    enabled: Boolean(rawId),
+  });
+}
+
+/** Dispara (ou repete) a análise por IA; atualiza o que depende do resultado. */
+export function useAnalisarPublicacao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (rawId: ID) => intimacoesService.analisar(rawId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["intimacoes-djen-raw"] });
+    },
   });
 }
 

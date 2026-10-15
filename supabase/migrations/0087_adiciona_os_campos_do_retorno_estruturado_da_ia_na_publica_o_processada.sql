@@ -1,0 +1,1 @@
+alter table public.intimacoes add column trecho_fundamentador text, add column pendencias jsonb not null default '[]'::jsonb, add column status_analise public.status_analise_ia not null default 'pendente', add column analisado_em timestamp with time zone

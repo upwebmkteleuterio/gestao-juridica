@@ -24,6 +24,12 @@ function dataSaoPaulo(agora = new Date()) {
   return { dia: deslocada.toISOString().slice(0, 10), hora: deslocada.toISOString().slice(11, 16) };
 }
 
+function deslocarDia(dia: string, delta: number) {
+  const data = new Date(`${dia}T00:00:00Z`);
+  data.setUTCDate(data.getUTCDate() + delta);
+  return data.toISOString().slice(0, 10);
+}
+
 function numeroCabecalho(valor: string | null) {
   if (!valor) return null;
   const numero = Number(valor);
@@ -124,7 +130,8 @@ serve(async (request) => {
       tribunal_sigla: typeof opcoes.tribunal === "string" && opcoes.tribunal.trim() ? opcoes.tribunal.trim() : null,
       disponibilizacao_de: de || null,
       disponibilizacao_ate: ate || null,
-      meio: meioParam || "",
+      // Sem filtro de meio a coluna fica nula: é o registro honesto de "todos os meios".
+      meio: meioParam || null,
       origem_disparo: origemCaptura,
       status: "consultando",
       disparada_por: ator,
@@ -135,7 +142,10 @@ serve(async (request) => {
       itens_duplicados: 0,
       parcial: false,
     }).select("id").single();
-    if (erroInsercao || !captura) throw new Error("falha_registro:Não foi possível registrar a execução da captura.");
+    if (erroInsercao || !captura) {
+      log(`Falha ao registrar a execução: ${erroInsercao?.message ?? "sem registro devolvido"}`);
+      throw new Error("falha_registro:Não foi possível registrar a execução da captura.");
+    }
 
     let recebidas = 0;
     let novas = 0;
@@ -264,31 +274,34 @@ serve(async (request) => {
       // ainda pendente, então repetir a execução no mesmo dia é seguro e não duplica nada.
       const oabs = Array.isArray(configuracao?.oabs_monitoradas) ? configuracao.oabs_monitoradas.filter((valor): valor is string => typeof valor === "string") : [];
       if (!oabs.length) return responder(200, { ok: true, dados: { status: "ocioso", mensagem: "Nenhuma OAB monitorada configurada." } });
+      const ontem = deslocarDia(agoraSp.dia, -1);
+      const limiteAtraso = deslocarDia(agoraSp.dia, -30);
       const resultados: Resultado[] = [];
       for (const oab of oabs) {
         const partes = /^(\d+)\/([A-Za-z]{2})$/.exec(oab.trim());
         if (!partes) continue;
         const [, numero, uf] = partes;
+        const ufOab = uf.toUpperCase();
         const { data: ultima, error: erroUltima } = await admin.from("capturas_djen").select("disponibilizacao_ate")
-          .eq("oab_numero", numero).eq("oab_uf", uf.toUpperCase()).in("status", ["concluido", "sem_novidades"])
+          .eq("oab_numero", numero).eq("oab_uf", ufOab).eq("origem_disparo", "cron")
+          .in("status", ["concluido", "sem_novidades"]).lte("disponibilizacao_de", ontem)
           .order("disponibilizacao_ate", { ascending: false }).limit(1).maybeSingle();
         if (erroUltima) throw new Error("Não foi possível determinar o último período capturado.");
-        // Cada rodada cobre um único dia por OAB, do mais antigo pendente para o mais recente.
-        // Assim o atraso é recuperado aos poucos, sem repetir indefinidamente o mesmo período.
-        let inicio: string;
+        // Atraso: se o robô ficou parado, o intervalo em falta é buscado de uma vez,
+        // limitado a 30 dias para a rodada não virar uma varredura gigante.
         if (ultima?.disponibilizacao_ate) {
-          const proxima = new Date(`${ultima.disponibilizacao_ate}T00:00:00Z`);
-          proxima.setUTCDate(proxima.getUTCDate() + 1);
-          inicio = proxima.toISOString().slice(0, 10);
-        } else {
-          const padrao = new Date(`${agoraSp.dia}T00:00:00-03:00`);
-          padrao.setUTCDate(padrao.getUTCDate() - 4);
-          inicio = padrao.toISOString().slice(0, 10);
+          const falta = deslocarDia(ultima.disponibilizacao_ate, 1);
+          if (falta < ontem) {
+            const de = falta < limiteAtraso ? limiteAtraso : falta;
+            resultados.push(await capturar({ oab_numero: numero, oab_uf: ufOab, disponibilizacaoDe: de, disponibilizacaoAte: ontem, itensPorPagina: 100 }, "cron", null));
+          }
         }
-        if (inicio > agoraSp.dia) continue;
-        resultados.push(await capturar({ oab_numero: numero, oab_uf: uf.toUpperCase(), disponibilizacaoDe: inicio, disponibilizacaoAte: inicio, itensPorPagina: 100, meio: "D" }, "cron", null));
+        // Sem histórico, o robô começa em ontem e passa a viver no presente: a cada rodada
+        // ele rebusca ontem e hoje. Como o controle de duplicados é pelo id da comunicação,
+        // repetir não custa nada e garante que nada do dia corrente escape.
+        resultados.push(await capturar({ oab_numero: numero, oab_uf: ufOab, disponibilizacaoDe: ontem, disponibilizacaoAte: agoraSp.dia, itensPorPagina: 100 }, "cron", null));
       }
-      if (!resultados.length) return responder(200, { ok: true, dados: { status: "ocioso", mensagem: "Nenhuma OAB possui período pendente de captura." } });
+      if (!resultados.length) return responder(200, { ok: true, dados: { status: "ocioso", mensagem: "Nenhuma OAB monitorada válida." } });
       const prioridade: Status[] = ["falha", "parcial", "concluido", "sem_novidades", "ocioso"];
       const status = prioridade.find((valor) => resultados.some((resultado) => resultado.status === valor)) ?? "sem_novidades";
       return responder(200, { ok: true, dados: {

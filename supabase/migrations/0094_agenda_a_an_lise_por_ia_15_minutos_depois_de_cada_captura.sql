@@ -1,0 +1,1 @@
+select cron.schedule('analisar-publicacoes-horario', '20 * * * *', replace(command, 'capturar-djen', 'analisar-publicacoes')) as job_id from cron.job where jobname = 'capturar-djen-horario'

@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
+  AnaliseIA,
   CampoOrdenacaoIntimacao,
   ConsultaIntimacoes,
   CriterioDistribuicao,
@@ -9,13 +10,15 @@ import type {
   IntimacaoInput,
   OrdenacaoConsulta,
   PreviaDistribuicao,
+  ResultadoAnaliseIA,
   ResultadoConsultaIntimacoes,
   ResultadoDistribuicao,
 } from "@/types";
-import { mensagemDeErro } from "./erros";
+import { invocarFuncao, mensagemDeErro } from "./erros";
 import { criarRepositorioSupabase } from "./repositorioSupabase";
 
-const COLUNAS = "id, raw_id, numero_processo, tribunal_sigla, orgao_julgador, data_disponibilizacao, acao_sugerida_ia, resumo_ia, data_fatal_calculada, advogado_id, status_fluxo, distribuido_em";
+const COLUNAS = "id, raw_id, numero_processo, tribunal_sigla, orgao_julgador, data_disponibilizacao, acao_sugerida_ia, resumo_ia, prazo_extraido_texto, data_fatal_calculada, advogado_id, status_fluxo, distribuido_em, trecho_fundamentador, pendencias, status_analise, analisado_em";
+const COLUNAS_ANALISE = "id, raw_id, modelo, status, resumo, acao_sugerida, prazo_texto, prazo_data, trecho_fundamentador, pendencias, motivo_falha, duracao_ms, criado_em";
 const ORDENACAO_PADRAO: OrdenacaoConsulta<CampoOrdenacaoIntimacao> = {
   campo: "data_disponibilizacao",
   direcao: "desc",
@@ -36,6 +39,10 @@ function normalizar(linha: Intimacao): Intimacao {
     orgao_julgador: linha.orgao_julgador ?? "",
     acao_sugerida_ia: linha.acao_sugerida_ia ?? "",
     resumo_ia: linha.resumo_ia ?? "",
+    trecho_fundamentador: linha.trecho_fundamentador ?? "",
+    pendencias: Array.isArray(linha.pendencias) ? linha.pendencias : [],
+    status_analise: linha.status_analise ?? "pendente",
+    analisado_em: linha.analisado_em ?? null,
   };
 }
 
@@ -177,6 +184,22 @@ export const intimacoesService = {
 
   async reativar(id: ID): Promise<Intimacao> {
     return repositorio.update(id, { status_fluxo: "triagem" });
+  },
+
+  /** Dispara a análise por IA de uma publicação (a chave vive só no servidor). */
+  async analisar(rawId: ID): Promise<ResultadoAnaliseIA> {
+    return invocarFuncao<ResultadoAnaliseIA>("analisar-publicacoes", { raw_id: rawId });
+  },
+
+  /** Histórico de tentativas de análise, da mais recente para a mais antiga. */
+  async listarAnalises(rawId: ID): Promise<AnaliseIA[]> {
+    const { data, error } = await supabase.from("analises_ia").select(COLUNAS_ANALISE)
+      .eq("raw_id", rawId).order("criado_em", { ascending: false }).limit(20);
+    if (error) throw new Error(mensagemDeErro(error));
+    return (data ?? []).map((linha) => {
+      const analise = linha as unknown as AnaliseIA;
+      return { ...analise, pendencias: Array.isArray(analise.pendencias) ? analise.pendencias : [] };
+    });
   },
 
   async obterCargaEquipe(): Promise<Record<ID, number>> {

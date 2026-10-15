@@ -90,7 +90,7 @@ export const tarefasPrazosService = {
 
   async listarEsteira(consulta: ConsultaEsteira = {}): Promise<ResultadoEsteira> {
     let query = supabase.from("tarefas_prazos").select(COLUNAS_EMBED);
-    if (consulta.escopo === "meus" && consulta.advogadoId) query = query.eq("advogado_id", consulta.advogadoId);
+    if (consulta.responsavelId) query = query.eq("advogado_id", consulta.responsavelId);
     const { data, error } = await query;
     if (error) throw new Error(mensagemDeErro(error));
     const base = ((data ?? []) as unknown as TarefaComIntimacao[]).map(comTribunal);

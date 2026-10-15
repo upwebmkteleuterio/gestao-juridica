@@ -1,0 +1,1 @@
+create policy analises_select_autenticado on public.analises_ia for select to authenticated using (true)

@@ -184,10 +184,15 @@ export const intimacoesMock: Intimacao[] = djenSeeds.map((seed, index) => {
     data_disponibilizacao: "2026-10-15",
     acao_sugerida_ia: triagem.acao,
     resumo_ia: triagem.resumo,
+    prazo_extraido_texto: triagem.fatal,
     data_fatal_calculada: triagem.fatal,
     advogado_id: triagem.advogadoId,
     status_fluxo: triagem.status,
     distribuido_em:
       triagem.status === "fila" ? "2026-10-15T06:30:00-03:00" : null,
+    trecho_fundamentador: "",
+    pendencias: [],
+    status_analise: "sucesso",
+    analisado_em: "2026-10-15T06:00:00-03:00",
   };
 });

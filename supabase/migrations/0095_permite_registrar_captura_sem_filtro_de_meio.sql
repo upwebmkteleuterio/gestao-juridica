@@ -1,0 +1,1 @@
+alter table public.capturas_djen alter column meio drop not null

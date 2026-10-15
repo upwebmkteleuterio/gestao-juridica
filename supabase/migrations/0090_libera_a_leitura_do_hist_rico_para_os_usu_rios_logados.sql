@@ -1,0 +1,1 @@
+grant select on table public.analises_ia to authenticated

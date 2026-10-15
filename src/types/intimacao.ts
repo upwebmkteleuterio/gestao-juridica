@@ -1,5 +1,11 @@
 import type { OrdenacaoConsulta, ResultadoPaginado } from "./consulta";
-import type { DateOnly, ID, ISODate, StatusFluxoIntimacao } from "./common";
+import type {
+  DateOnly,
+  ID,
+  ISODate,
+  StatusAnaliseIA,
+  StatusFluxoIntimacao,
+} from "./common";
 
 /**
  * Tabela `intimacoes` — triagem e processamento pela IA.
@@ -14,13 +20,51 @@ export interface Intimacao {
   data_disponibilizacao: DateOnly;
   acao_sugerida_ia: string;
   resumo_ia: string;
+  /** Prazo exatamente como o texto indicou, ou "não identificado". */
+  prazo_extraido_texto: string | null;
   data_fatal_calculada: DateOnly | null;
   advogado_id: ID | null;
   status_fluxo: StatusFluxoIntimacao;
   distribuido_em: ISODate | null;
+  /** Trecho literal do texto que fundamenta o parecer da IA. */
+  trecho_fundamentador: string;
+  /** O que ainda falta para cumprir a determinação. */
+  pendencias: string[];
+  status_analise: StatusAnaliseIA;
+  analisado_em: ISODate | null;
 }
 
 export type IntimacaoInput = Omit<Intimacao, "id">;
+
+/**
+ * Tabela `analises_ia` — histórico append-only: uma linha por tentativa de
+ * análise, inclusive as que falharam, com o motivo.
+ */
+export interface AnaliseIA {
+  id: ID;
+  raw_id: ID;
+  modelo: string;
+  status: StatusAnaliseIA;
+  resumo: string | null;
+  acao_sugerida: string | null;
+  prazo_texto: string | null;
+  prazo_data: DateOnly | null;
+  trecho_fundamentador: string | null;
+  pendencias: string[];
+  motivo_falha: string | null;
+  duracao_ms: number | null;
+  criado_em: ISODate;
+}
+
+/** Retorno da análise disparada no servidor. */
+export interface ResultadoAnaliseIA {
+  processadas: number;
+  sucessos: number;
+  falhas: number;
+  restantes: number;
+  modelo: string;
+  mensagem: string;
+}
 
 /** Campos ordenáveis na listagem da Tela 1. */
 export type CampoOrdenacaoIntimacao =

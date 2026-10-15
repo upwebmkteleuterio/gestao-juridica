@@ -17,6 +17,8 @@ import {
   useCapacidadeOperacional,
   useDistribuirLote,
   usePreviaDistribuicao,
+  useRegistrarEvento,
+  useUsuarioAtual,
 } from "@/hooks";
 import { formatarOab } from "@/lib/format";
 import { useUiStore } from "@/store";
@@ -48,6 +50,8 @@ export function DistribuicaoModal({
     useAdvogadosElegiveis();
   const capacidade = useCapacidadeOperacional();
   const distribuir = useDistribuirLote();
+  const registrarEvento = useRegistrarEvento();
+  const usuario = useUsuarioAtual();
 
   const criterio = useUiStore((estado) => estado.criterioDistribuicao);
   const setCriterio = useUiStore((estado) => estado.setCriterioDistribuicao);
@@ -82,8 +86,29 @@ export function DistribuicaoModal({
         advogadoIds: selecionados,
         criterio,
       });
+      const somaAtribuida = resultado.atribuicoes.reduce(
+        (soma, atribuicao) => soma + atribuicao.quantidade,
+        0,
+      );
+      const divisao = resultado.atribuicoes.map((atribuicao) => {
+        const nome = elegiveis?.find((item) => item.id === atribuicao.advogado_id)?.nome_completo ?? atribuicao.advogado_id;
+        return `${nome} ${atribuicao.quantidade}`;
+      }).join(" · ");
+      const criterioLegivel = criterio === "igualitario" ? "divisão igualitária" : "compensação de carga";
+      try {
+        await registrarEvento.mutateAsync({
+          ator_id: usuario?.id ?? null,
+          entidade: "distribuicao",
+          entidade_id: resultado.intimacao_ids.join(","),
+          acao: "distribuicao_lote",
+          antes: null,
+          depois: `${resultado.total} publicações · ${divisao} · critério: ${criterioLegivel}`,
+        });
+      } catch {
+        toast.warning("Distribuição concluída, mas não foi possível registrar o histórico.");
+      }
       toast.success(
-        `${resultado.total} publicações distribuídas entre ${resultado.participantes.length} advogados.`,
+        `${resultado.total} publicações distribuídas · soma das cargas: ${somaAtribuida}.`,
       );
       onConfirmado();
       onClose();
@@ -303,10 +328,10 @@ export function DistribuicaoModal({
           </ul>
         </div>
 
-        <Alert severidade="info" titulo="Simulação local">
-          Publicações já atribuídas não entram novamente e a confirmação gera as
-          tarefas equivalentes na esteira. Nenhum dado é enviado a serviços
-          externos.
+        <Alert severidade="info" titulo="Prévia somente para leitura">
+          A consulta de prévia não altera dados; cancelar esta janela não grava
+          nada. Publicações já atribuídas não entram novamente e a confirmação
+          executa a distribuição e cria as tarefas equivalentes na esteira.
         </Alert>
       </div>
     </Modal>

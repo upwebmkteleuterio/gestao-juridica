@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
   CriterioDistribuicao,
-  EscopoEsteira,
   FiltroIntimacoes,
   ID,
   UrgenciaEsteira,
@@ -11,7 +10,7 @@ import type {
 export type Tema = "light" | "dark";
 
 export interface FiltroEsteira {
-  escopo: EscopoEsteira;
+  responsavelId: ID | null;
   urgencia: UrgenciaEsteira;
 }
 
@@ -59,6 +58,18 @@ const FILTROS_INICIAIS: FiltroIntimacoes = {
   advogadoId: null,
 };
 
+const URGENCIAS_ESTEIRA: UrgenciaEsteira[] = ["todos", "criticos", "hoje", "semana", "em_dia"];
+
+function normalizarFiltroEsteira(valor: unknown): FiltroEsteira {
+  const salvo = valor && typeof valor === "object" ? valor as Partial<FiltroEsteira> : {};
+  const responsavelId = salvo.responsavelId;
+  const idValido = typeof responsavelId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(responsavelId);
+  return {
+    responsavelId: idValido ? responsavelId : null,
+    urgencia: URGENCIAS_ESTEIRA.includes(salvo.urgencia as UrgenciaEsteira) ? salvo.urgencia as UrgenciaEsteira : "todos",
+  };
+}
+
 /**
  * Estado de interface global com persistência: tema, filtros, posição de
  * rolagem e rascunhos. Fechar o navegador não perde o contexto do usuário.
@@ -69,7 +80,7 @@ export const useUiStore = create<UiState>()(
       tema: "light",
       sidebarRecolhida: false,
       filtrosPainel: FILTROS_INICIAIS,
-      filtroEsteira: { escopo: "geral", urgencia: "todos" },
+      filtroEsteira: { responsavelId: null, urgencia: "todos" },
       criterioDistribuicao: "igualitario",
       scrollPorRota: {},
       rascunhoPrazoManual: {},
@@ -112,6 +123,17 @@ export const useUiStore = create<UiState>()(
         preferenciasIniciadas: estado.preferenciasIniciadas,
         esteiraIniciada: estado.esteiraIniciada,
       }),
+      merge: (persistido, estadoAtual) => {
+        const salvo = persistido as Partial<UiState> | undefined;
+        const filtroSalvo = salvo?.filtroEsteira as unknown;
+        const formatoAntigo = !filtroSalvo || typeof filtroSalvo !== "object" || !("responsavelId" in filtroSalvo);
+        return {
+          ...estadoAtual,
+          ...(salvo ?? {}),
+          filtroEsteira: normalizarFiltroEsteira(filtroSalvo),
+          esteiraIniciada: formatoAntigo ? false : salvo?.esteiraIniciada ?? estadoAtual.esteiraIniciada,
+        };
+      },
     },
   ),
 );

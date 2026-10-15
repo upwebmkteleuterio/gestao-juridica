@@ -1,0 +1,1 @@
+alter table public.analises_ia enable row level security

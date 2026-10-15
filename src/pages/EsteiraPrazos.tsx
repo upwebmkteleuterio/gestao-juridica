@@ -7,10 +7,11 @@ import {
   Badge,
   Button,
   EmptyState,
+  FormField,
   PageHeading,
   Panel,
   PanelHeader,
-  SegmentedControl,
+  Select,
 } from "@/components/kit";
 import {
   ExecucaoTarefaPanel,
@@ -49,17 +50,16 @@ export default function EsteiraPrazos() {
 
   useEffect(() => {
     if (esteiraIniciada || !usuario) return;
-    setFiltroEsteira({ escopo: usuario.perfil === "advogado" ? "meus" : "geral" });
+    setFiltroEsteira({ responsavelId: usuario.perfil === "advogado" ? usuario.id : null });
     marcarEsteiraIniciada();
   }, [esteiraIniciada, usuario, setFiltroEsteira, marcarEsteiraIniciada]);
 
   const consulta = useMemo(
     () => ({
-      escopo: filtro.escopo,
-      advogadoId: filtro.escopo === "meus" ? usuario?.id ?? null : null,
+      responsavelId: filtro.responsavelId,
       urgencia: filtro.urgencia,
     }),
-    [filtro.escopo, filtro.urgencia, usuario?.id],
+    [filtro.responsavelId, filtro.urgencia],
   );
   const esteira = useEsteira(consulta);
   const { data: advogados } = useAdvogados();
@@ -87,9 +87,9 @@ export default function EsteiraPrazos() {
     <Button variant="secondary" onClick={() => setFiltroEsteira({ urgencia: "todos" })}>
       Limpar filtro de urgência
     </Button>
-  ) : filtro.escopo === "meus" ? (
-    <Button variant="secondary" onClick={() => setFiltroEsteira({ escopo: "geral" })}>
-      Ver pauta geral
+  ) : filtro.responsavelId ? (
+    <Button variant="secondary" onClick={() => setFiltroEsteira({ responsavelId: null })}>
+      Ver todos os responsáveis
     </Button>
   ) : (
     <Button variant="primary" onClick={() => navigate("/esteira/novo-prazo")}>
@@ -114,16 +114,19 @@ export default function EsteiraPrazos() {
       <Panel>
         <PanelHeader titulo="Controles de visualização" />
         <div className="space-y-4 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <SegmentedControl
-              valor={filtro.escopo}
-              onChange={(escopo) => setFiltroEsteira({ escopo })}
-              ariaLabel="Escopo da esteira"
-              opcoes={[
-                { valor: "meus", rotulo: "Meus prazos" },
-                { valor: "geral", rotulo: "Pauta geral do escritório" },
-              ]}
-            />
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <FormField label="Responsável" htmlFor="esteira-responsavel" className="w-full max-w-xs">
+              <Select
+                id="esteira-responsavel"
+                value={filtro.responsavelId ?? ""}
+                onChange={(evento) => setFiltroEsteira({ responsavelId: evento.target.value || null })}
+              >
+                <option value="">Todos</option>
+                {(advogados ?? []).map((advogado) => (
+                  <option key={advogado.id} value={advogado.id}>{advogado.nome_completo}</option>
+                ))}
+              </Select>
+            </FormField>
             <div className="flex flex-wrap gap-2" aria-label="Filtros de urgência">
               {FILTROS_URGENCIA.map((item) => (
                 <Button

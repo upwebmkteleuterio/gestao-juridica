@@ -1,0 +1,1 @@
+grant select, insert, update, delete on table public.analises_ia to service_role

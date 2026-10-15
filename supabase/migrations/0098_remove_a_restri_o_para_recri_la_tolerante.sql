@@ -1,0 +1,1 @@
+alter table public.capturas_djen drop constraint capturas_djen_meio_check
