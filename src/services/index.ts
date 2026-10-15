@@ -1,6 +1,7 @@
 export * from "./erros";
 export * from "./repositorioSupabase";
 export * from "./advogadosService";
+export * from "./equipeService";
 export * from "./intimacoesDjenRawService";
 export * from "./intimacoesService";
 export * from "./tarefasPrazosService";

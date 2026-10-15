@@ -20,6 +20,38 @@ export interface Advogado {
 
 export type AdvogadoInput = Omit<Advogado, "id" | "created_at">;
 
+export interface MembroEquipeInput {
+  nome_completo: string;
+  email_corporativo: string;
+  oab_numero: string;
+  oab_uf: string;
+  perfil: PerfilUsuario;
+  ativo_distribuicao: boolean;
+  cargo?: string;
+  data_ingresso?: DateOnly;
+}
+
+export interface CriarMembroEquipeInput extends MembroEquipeInput {
+  pode_entrar: boolean;
+  senha: string;
+}
+
+export interface AtualizarMembroEquipeInput extends MembroEquipeInput {
+  id: ID;
+}
+
+export interface DefinirAcessoEquipeInput {
+  id: ID;
+  pode_entrar: boolean;
+}
+
+export interface AcessoAdvogado {
+  id: ID;
+  email: string;
+  pode_entrar: boolean;
+  banido_ate: ISODate | null;
+}
+
 /** Linha da materialized view `view_produtividade_equipe`. */
 export interface ProdutividadeEquipe {
   advogado_id: ID;

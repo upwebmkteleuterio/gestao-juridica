@@ -1,6 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { advogadosService } from "@/services";
-import type { AdvogadoInput } from "@/types";
 
 export const advogadosKeys = {
   all: ["advogados"] as const,
@@ -30,38 +29,6 @@ export function useAdvogado(id?: string) {
   });
 }
 
-/** A equipe mudou: os cards de produtividade da Tela 4 precisam recarregar. */
-function invalidarEquipe(queryClient: ReturnType<typeof useQueryClient>) {
-  queryClient.invalidateQueries({ queryKey: advogadosKeys.all });
-  queryClient.invalidateQueries({ queryKey: ["tarefas-prazos"] });
-}
-
-export function useCriarAdvogado() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: AdvogadoInput) => advogadosService.create(input),
-    onSuccess: () => invalidarEquipe(queryClient),
-  });
-}
-
-export function useAtualizarAdvogado() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: Partial<AdvogadoInput> }) =>
-      advogadosService.update(id, input),
-    onSuccess: () => invalidarEquipe(queryClient),
-  });
-}
-
-export function useAlternarDisponibilidadeAdvogado() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, ativo_distribuicao }: { id: string; ativo_distribuicao: boolean }) =>
-      advogadosService.alternarDisponibilidade(id, ativo_distribuicao),
-    onSuccess: () => invalidarEquipe(queryClient),
-  });
-}
-
 /** Checagem de duplicidade da inscrição da OAB (Tela 4.1). */
 export function useVerificarOabEmUso() {
   return useMutation({
@@ -75,13 +42,5 @@ export function useVerificarOabEmUso() {
         params.oab_uf,
         params.ignorarId,
       ),
-  });
-}
-
-export function useRemoverAdvogado() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => advogadosService.remove(id),
-    onSuccess: () => invalidarEquipe(queryClient),
   });
 }

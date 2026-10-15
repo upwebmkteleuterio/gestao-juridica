@@ -5,6 +5,7 @@ export * from "./Button";
 export * from "./CapacityMeter";
 export * from "./Card";
 export * from "./Checkbox";
+export * from "./ConfirmDialog";
 export * from "./EmptyState";
 export * from "./FormField";
 export * from "./Headings";
