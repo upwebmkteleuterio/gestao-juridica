@@ -49,6 +49,17 @@ export function formatarOab(numero: string, uf: string): string {
   return `OAB/${uf} ${numero}`;
 }
 
+/**
+ * Normaliza uma inscrição para a chave de comparação `numero/UF`.
+ * Aceita "OAB/RJ 197.254", "197254/RJ" ou "OAB/RJ 197254".
+ */
+export function normalizarOab(valor: string): string {
+  const digitos = valor.replace(/\D/g, "");
+  const uf = valor.match(/\/([A-Za-z]{2})\b/)?.[1]?.toUpperCase();
+  if (!digitos || !uf) return "";
+  return `${digitos}/${uf}`;
+}
+
 /** Máscara progressiva do número único CNJ: `0000000-00.0000.0.00.0000`. */
 export function mascararCnj(valor: string): string {
   const digitos = valor.replace(/\D/g, "").slice(0, 20);

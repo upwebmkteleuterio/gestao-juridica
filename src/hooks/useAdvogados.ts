@@ -30,11 +30,17 @@ export function useAdvogado(id?: string) {
   });
 }
 
+/** A equipe mudou: os cards de produtividade da Tela 4 precisam recarregar. */
+function invalidarEquipe(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: advogadosKeys.all });
+  queryClient.invalidateQueries({ queryKey: ["tarefas-prazos"] });
+}
+
 export function useCriarAdvogado() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: AdvogadoInput) => advogadosService.create(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: advogadosKeys.all }),
+    onSuccess: () => invalidarEquipe(queryClient),
   });
 }
 
@@ -43,7 +49,23 @@ export function useAtualizarAdvogado() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<AdvogadoInput> }) =>
       advogadosService.update(id, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: advogadosKeys.all }),
+    onSuccess: () => invalidarEquipe(queryClient),
+  });
+}
+
+/** Checagem de duplicidade da inscrição da OAB (Tela 4.1). */
+export function useVerificarOabEmUso() {
+  return useMutation({
+    mutationFn: (params: {
+      oab_numero: string;
+      oab_uf: string;
+      ignorarId?: string;
+    }) =>
+      advogadosService.oabEmUso(
+        params.oab_numero,
+        params.oab_uf,
+        params.ignorarId,
+      ),
   });
 }
 

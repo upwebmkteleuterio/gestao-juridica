@@ -38,4 +38,23 @@ export const advogadosService = {
       ) ?? null
     );
   },
+
+  /**
+   * Checagem de duplicidade da inscrição (Tela 4.1). `ignorarId` permite
+   * editar o próprio registro sem acusar conflito com ele mesmo.
+   */
+  async oabEmUso(
+    oab_numero: string,
+    oab_uf: string,
+    ignorarId?: string,
+  ): Promise<boolean> {
+    const todos = await repositorio.getAll();
+    const numero = oab_numero.replace(/\D/g, "");
+    return todos.some(
+      (advogado) =>
+        advogado.id !== ignorarId &&
+        advogado.oab_uf.toUpperCase() === oab_uf.toUpperCase() &&
+        advogado.oab_numero.replace(/\D/g, "") === numero,
+    );
+  },
 };

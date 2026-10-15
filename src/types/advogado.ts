@@ -27,3 +27,18 @@ export interface ProdutividadeEquipe {
   concluidos_mes: number;
   criticos_48h: number;
 }
+
+/**
+ * `view_produtividade_equipe` unida a `advogados` — alimenta os cards do
+ * Painel da Equipe (Tela 4). `total_prazos` conta apenas prazos em aberto.
+ */
+export interface AdvogadoCarga extends ProdutividadeEquipe {
+  nome_completo: string;
+  email_corporativo: string;
+  oab_numero: string;
+  oab_uf: string;
+  perfil: PerfilUsuario;
+  ativo_distribuicao: boolean;
+  /** Campo auxiliar de apresentação (não persistido no banco). */
+  cargo?: string;
+}

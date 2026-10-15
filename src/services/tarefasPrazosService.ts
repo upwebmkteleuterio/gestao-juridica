@@ -3,6 +3,7 @@ import { diasAte } from "@/lib/format";
 import { slaDeDataFatal } from "@/lib/sla";
 import type {
   Advogado,
+  AdvogadoCarga,
   CargaAdvogado,
   ConsultaEsteira,
   EtapaKanban,
@@ -234,6 +235,49 @@ export const tarefasPrazosService = {
       .sort((a, b) => b.total - a.total);
 
     return delay(capacidade);
+  },
+
+  /**
+   * Cards do Painel da Equipe (Tela 4): a materialized view
+   * `view_produtividade_equipe` unida a `advogados`. `total_prazos` conta
+   * apenas prazos em aberto; `criticos_48h` lê o SLA da data fatal.
+   */
+  async obterProdutividadeEquipe(): Promise<AdvogadoCarga[]> {
+    const tarefas = lerColecao<TarefaPrazo>(
+      CHAVES.tarefasPrazos,
+      tarefasPrazosMock,
+    );
+    const advogados = lerColecao<Advogado>(CHAVES.advogados, advogadosMock);
+
+    const produtividade = advogados
+      .map<AdvogadoCarga>((advogado) => {
+        const proprias = tarefas.filter(
+          (tarefa) => tarefa.advogado_id === advogado.id,
+        );
+        const abertas = proprias.filter(
+          (tarefa) => tarefa.etapa_kanban !== "concluido",
+        );
+        return {
+          advogado_id: advogado.id,
+          nome_completo: advogado.nome_completo,
+          email_corporativo: advogado.email_corporativo,
+          oab_numero: advogado.oab_numero,
+          oab_uf: advogado.oab_uf,
+          perfil: advogado.perfil,
+          ativo_distribuicao: advogado.ativo_distribuicao,
+          cargo: advogado.cargo,
+          total_prazos: abertas.length,
+          criticos_48h: abertas.filter(
+            (tarefa) => slaDeDataFatal(tarefa.data_fatal).critico,
+          ).length,
+          concluidos_mes: proprias.filter(
+            (tarefa) => tarefa.etapa_kanban === "concluido",
+          ).length,
+        };
+      })
+      .sort((a, b) => b.total_prazos - a.total_prazos);
+
+    return delay(produtividade);
   },
 
   async contarPorEtapa(): Promise<Record<EtapaKanban, number>> {

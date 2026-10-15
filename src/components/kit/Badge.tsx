@@ -3,7 +3,11 @@ import { CalendarClock, Sparkles } from "lucide-react";
 import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 import { slaDeDataFatal } from "@/lib/sla";
-import type { EtapaKanban, StatusFluxoIntimacao } from "@/types";
+import type {
+  EtapaKanban,
+  StatusAnaliseIA,
+  StatusFluxoIntimacao,
+} from "@/types";
 
 export const badgeVariants = cva(
   "inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-[10px] font-semibold",
@@ -78,6 +82,31 @@ export function EtapaBadge({
   className?: string;
 }) {
   const config = ROTULOS_ETAPA[etapa];
+  return (
+    <Badge variant={config.variant} className={className}>
+      {config.rotulo}
+    </Badge>
+  );
+}
+
+const ROTULOS_ANALISE: Record<
+  StatusAnaliseIA,
+  { rotulo: string; variant: BadgeProps["variant"] }
+> = {
+  pendente: { rotulo: "Aguardando fila", variant: "info" },
+  sucesso: { rotulo: "Sucesso", variant: "success" },
+  falha: { rotulo: "Erro na análise", variant: "danger" },
+};
+
+/** Status do processamento da IA sobre o payload bruto (Tela 3). */
+export function AnaliseBadge({
+  status,
+  className,
+}: {
+  status: StatusAnaliseIA;
+  className?: string;
+}) {
+  const config = ROTULOS_ANALISE[status];
   return (
     <Badge variant={config.variant} className={className}>
       {config.rotulo}

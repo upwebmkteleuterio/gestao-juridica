@@ -20,6 +20,7 @@ export const tarefasKeys = {
   ativas: ["tarefas-prazos", "ativas"] as const,
   criticas: ["tarefas-prazos", "criticas"] as const,
   etapas: ["tarefas-prazos", "etapas"] as const,
+  produtividade: ["tarefas-prazos", "produtividade"] as const,
   esteira: (consulta: ConsultaEsteira) =>
     ["tarefas-prazos", "esteira", consulta] as const,
 };
@@ -68,6 +69,14 @@ export function useCapacidadeOperacional() {
   return useQuery({
     queryKey: tarefasKeys.capacidade,
     queryFn: () => tarefasPrazosService.obterCapacidade(),
+  });
+}
+
+/** Cards do Painel da Equipe (Tela 4) — view de produtividade + advogados. */
+export function useProdutividadeEquipe() {
+  return useQuery({
+    queryKey: tarefasKeys.produtividade,
+    queryFn: () => tarefasPrazosService.obterProdutividadeEquipe(),
   });
 }
 

@@ -2,6 +2,7 @@ export * from "./consulta";
 export * from "./common";
 export * from "./advogado";
 export * from "./intimacaoDjenRaw";
+export * from "./auditoriaDjen";
 export * from "./intimacao";
 export * from "./tarefaPrazo";
 export * from "./configuracaoSistema";

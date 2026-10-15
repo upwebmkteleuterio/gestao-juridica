@@ -387,3 +387,104 @@ export const intimacoesDjenRawMock: IntimacaoDjenRaw[] = djenSeeds.map(
     },
   }),
 );
+
+/* ------------------------------------------------------------------ */
+/* Captura manual (Tela 3.1)                                           */
+/* ------------------------------------------------------------------ */
+
+interface SeedCaptura {
+  djen: number;
+  hash: string;
+  tribunal: string;
+  orgao: string;
+  processo: string;
+  classe: string;
+  documento: string;
+  comunicacao: string;
+  parteAtiva: string;
+  partePassiva: string;
+  texto: string;
+  advogados: { nome: string; oab: string }[];
+}
+
+/**
+ * Publicações que a "fonte oficial" devolve em uma captura manual.
+ * Simulam o UPSERT do robô: na primeira execução entram como novas e, nas
+ * seguintes, são descartadas como duplicadas (chave `djen_id_original`).
+ */
+const seedsCaptura: SeedCaptura[] = [
+  {
+    djen: 1082312001,
+    hash: "1a2b3c4d5e6f70819203142536475869708192a3b4c5d6e7f8091a2b3c4d5e6f",
+    tribunal: "TJRJ",
+    orgao: "7ª Vara Cível da Comarca do Rio de Janeiro",
+    processo: "0801122-45.2026.8.19.0001",
+    classe: "Ação de Cobrança",
+    documento: "Despacho",
+    comunicacao: "Intimação",
+    parteAtiva: "Condomínio Solar das Palmeiras",
+    partePassiva: "Vera Lúcia Amaral",
+    texto:
+      "Intime-se a parte ré para apresentar contestação no prazo de 15 (quinze) dias úteis, sob pena de revelia.",
+    advogados: [{ nome: "Mariana Costa", oab: "OAB/RJ 197.254" }],
+  },
+  {
+    djen: 1082312014,
+    hash: "2b3c4d5e6f70819203142536475869708192a3b4c5d6e7f8091a2b3c4d5e6f708",
+    tribunal: "TJRJ",
+    orgao: "1ª Vara de Família da Comarca de Niterói",
+    processo: "0802233-56.2026.8.19.0002",
+    classe: "Ação de Divórcio",
+    documento: "Decisão",
+    comunicacao: "Intimação",
+    parteAtiva: "Patrícia Nunes Farias",
+    partePassiva: "Eduardo Farias",
+    texto:
+      "Intimem-se as partes para manifestação sobre a partilha apresentada no prazo de 10 (dez) dias úteis.",
+    advogados: [{ nome: "Mariana Costa", oab: "OAB/RJ 197.254" }],
+  },
+  {
+    djen: 1082312027,
+    hash: "3c4d5e6f70819203142536475869708192a3b4c5d6e7f8091a2b3c4d5e6f70819",
+    tribunal: "TJSP",
+    orgao: "5ª Vara Cível da Comarca de Campinas",
+    processo: "1004455-67.2026.8.26.0100",
+    classe: "Ação de Indenização por Dano Material",
+    documento: "Sentença",
+    comunicacao: "Intimação",
+    parteAtiva: "Transportes Campinas Ltda.",
+    partePassiva: "Seguradora Interiorana S.A.",
+    texto:
+      "Publique-se a sentença e intimem-se as partes. Prazo de 15 (quinze) dias úteis para eventual recurso.",
+    advogados: [{ nome: "Pedro Almeida", oab: "OAB/SP 204.812" }],
+  },
+];
+
+export const capturasDjenSimuladas: IntimacaoDjenRaw[] = seedsCaptura.map(
+  (s, indice) => ({
+    id: `raw-sim-${String(indice + 1).padStart(3, "0")}`,
+    djen_id_original: String(s.djen),
+    djen_hash: s.hash,
+    status_analise_ia: "pendente",
+    criado_em: RECEBIDO_EM,
+    payload_json: {
+      advogados: s.advogados,
+      id: s.djen,
+      data_disponibilizacao: DISPONIBILIZACAO,
+      siglaTribunal: s.tribunal,
+      tipoComunicacao: s.comunicacao,
+      nomeOrgao: s.orgao,
+      numero_processo: s.processo,
+      nomeClasse: s.classe,
+      tipoDocumento: s.documento,
+      texto: s.texto,
+      link: `https://comunica.pje.jus.br/documentos/${s.djen}`,
+      hash: s.hash,
+      meio: "Diário de Justiça Eletrônico Nacional",
+      destinatarios: [
+        { nome: s.parteAtiva, polo: "A", comunicacao_id: s.djen },
+        { nome: s.partePassiva, polo: "P", comunicacao_id: s.djen },
+      ],
+    },
+  }),
+);

@@ -34,7 +34,8 @@
 # Rotas
 
 - Pública: `/login` (sessão simulada com escolha de perfil admin/advogado) e `/styleguide` (**playground temporário do UI Kit** — remover quando a validação terminar).
-- Protegidas por `ProtectedRoute` + `AppShell` (`<Outlet />`): `/painel`, `/painel/distribuicao`, `/painel/publicacao/:id`, `/esteira`, `/esteira/tarefa/:id`, `/esteira/novo-prazo`, `/djen`, `/djen/nova-consulta`, `/djen/payload/:id`, `/equipe`, `/equipe/advogado/:id`, `/configuracoes`, `/configuracoes/editar`.
+- Protegidas por `ProtectedRoute` + `AppShell` (`<Outlet />`): `/painel`, `/painel/distribuicao`, `/painel/publicacao/:id`, `/esteira`, `/esteira/tarefa/:id`, `/esteira/novo-prazo`, `/djen`, `/djen/nova-consulta`, `/djen/payload/:id`, `/equipe`, `/equipe/novo`, `/equipe/advogado/:id`, `/configuracoes`, `/configuracoes/editar`.
+- Telas de modal/painel (1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1) são **sobreposições route-driven**: a rota base renderiza a tela de listagem e a rota da sobreposição renderiza a mesma tela com o modal/painel aberto, preservando o contexto. Fechar sempre volta para a rota base.
 - Perfis de acesso: `admin` (sócio/gestor) e `advogado`. O advogado só vê Painel e Esteira na sidebar; Consulta DJEN, Equipe e Configurações são exclusivas do admin.
 
 # Referências

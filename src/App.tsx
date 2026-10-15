@@ -19,12 +19,9 @@ import EsteiraPrazos from "./pages/EsteiraPrazos";
 
 /* Menu 3 — Consulta & Captura DJEN */
 import DjenMonitor from "./pages/DjenMonitor";
-import DjenDisparoConsulta from "./pages/DjenDisparoConsulta";
-import DjenPayload from "./pages/DjenPayload";
 
 /* Menu 4 — Advogados & Cargas */
 import Equipe from "./pages/Equipe";
-import EquipeAdvogado from "./pages/EquipeAdvogado";
 
 /* Menu 5 — Configurações & Chaves IA */
 import Configuracoes from "./pages/Configuracoes";
@@ -87,20 +84,18 @@ const App = () => (
             <Route path="/esteira/tarefa/:id" element={<EsteiraPrazos />} />
             <Route path="/esteira/novo-prazo" element={<EsteiraPrazos />} />
 
-            {/* Menu 3 — Consulta & Captura DJEN */}
+            {/* Menu 3 — Consulta & Captura DJEN.
+                3.1 (disparo manual) e 3.2 (payload bruto) são sobreposições
+                da Tela 3, então compartilham a rota base e mantêm o contexto. */}
             <Route path="/djen" element={<DjenMonitor />} />
-            <Route
-              path="/djen/nova-consulta"
-              element={<DjenDisparoConsulta />}
-            />
-            <Route path="/djen/payload/:id" element={<DjenPayload />} />
+            <Route path="/djen/nova-consulta" element={<DjenMonitor />} />
+            <Route path="/djen/payload/:id" element={<DjenMonitor />} />
 
-            {/* Menu 4 — Advogados & Cargas */}
+            {/* Menu 4 — Advogados & Cargas.
+                4.1 (cadastro/edição) é sobreposição da Tela 4. */}
             <Route path="/equipe" element={<Equipe />} />
-            <Route
-              path="/equipe/advogado/:id"
-              element={<EquipeAdvogado />}
-            />
+            <Route path="/equipe/novo" element={<Equipe />} />
+            <Route path="/equipe/advogado/:id" element={<Equipe />} />
 
             {/* Menu 5 — Configurações & Chaves IA */}
             <Route path="/configuracoes" element={<Configuracoes />} />
