@@ -1,9 +1,8 @@
 import { Bell, Menu, Plus } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useConfiguracoes, useTarefasPrazos } from "@/hooks";
+import { useConfiguracoes, useTarefasCriticas } from "@/hooks";
 import { formatarData } from "@/lib/format";
-import { slaDeDataFatal } from "@/lib/sla";
 import { Badge, Button, IconButton } from "@/components/kit";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -15,19 +14,11 @@ export interface TopbarProps {
 export function Topbar({ onAbrirMenu }: TopbarProps) {
   const navigate = useNavigate();
   const { data: config } = useConfiguracoes();
-  const { data: tarefas } = useTarefasPrazos();
+  const { data: criticos } = useTarefasCriticas();
   const [alertasAbertos, setAlertasAbertos] = useState(false);
   const areaAlertas = useRef<HTMLDivElement>(null);
 
-  const criticos = useMemo(
-    () =>
-      (tarefas ?? []).filter(
-        (tarefa) =>
-          tarefa.etapa_kanban !== "concluido" &&
-          slaDeDataFatal(tarefa.data_fatal).critico,
-      ),
-    [tarefas],
-  );
+  const alertas = criticos ?? [];
 
   useEffect(() => {
     if (!alertasAbertos) return undefined;
@@ -84,14 +75,14 @@ export function Topbar({ onAbrirMenu }: TopbarProps) {
             <IconButton
               variant="secondary"
               onClick={() => setAlertasAbertos((valor) => !valor)}
-              aria-label={`Central de alertas (${criticos.length})`}
+              aria-label={`Central de alertas (${alertas.length})`}
               aria-expanded={alertasAbertos}
             >
               <Bell className="h-4 w-4" />
             </IconButton>
-            {criticos.length > 0 ? (
+            {alertas.length > 0 ? (
               <span className="pointer-events-none absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
-                {criticos.length}
+                {alertas.length}
               </span>
             ) : null}
 
@@ -100,9 +91,9 @@ export function Topbar({ onAbrirMenu }: TopbarProps) {
                 <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Prazos críticos (&lt; 48h)
                 </p>
-                {criticos.length > 0 ? (
+                {alertas.length > 0 ? (
                   <ul className="space-y-0.5">
-                    {criticos.slice(0, 5).map((tarefa) => (
+                    {alertas.slice(0, 5).map((tarefa) => (
                       <li key={tarefa.id}>
                         <Link
                           to={`/esteira/tarefa/${tarefa.id}`}

@@ -11,10 +11,8 @@ import Login from "./pages/Login";
 import Styleguide from "./pages/Styleguide";
 import NotFound from "./pages/NotFound";
 
-/* Menu 1 — Painel do Gestor */
+/* Menu 1 — Painel do Gestor (1.1 e 1.2 são modal/painel da Tela 1) */
 import PainelIntimacoes from "./pages/PainelIntimacoes";
-import PainelDistribuicao from "./pages/PainelDistribuicao";
-import PainelDetalhePublicacao from "./pages/PainelDetalhePublicacao";
 
 /* Menu 2 — Esteira de Prazos */
 import EsteiraPrazos from "./pages/EsteiraPrazos";
@@ -73,15 +71,14 @@ const App = () => (
               </ProtectedRoute>
             }
           >
-            {/* Menu 1 — Painel do Gestor */}
+            {/* Menu 1 — Painel do Gestor.
+                1.1 (distribuição) e 1.2 (detalhe) são sobreposições da
+                Tela 1, então compartilham a rota base e mantêm o contexto. */}
             <Route path="/painel" element={<PainelIntimacoes />} />
-            <Route
-              path="/painel/distribuicao"
-              element={<PainelDistribuicao />}
-            />
+            <Route path="/painel/distribuicao" element={<PainelIntimacoes />} />
             <Route
               path="/painel/publicacao/:id"
-              element={<PainelDetalhePublicacao />}
+              element={<PainelIntimacoes />}
             />
 
             {/* Menu 2 — Esteira de Prazos */}

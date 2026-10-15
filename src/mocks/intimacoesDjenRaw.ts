@@ -346,28 +346,44 @@ export const djenSeeds: Seed[] = [
   },
 ];
 
-export const intimacoesDjenRawMock: IntimacaoDjenRaw[] = djenSeeds.map((s) => ({
-  id: s.id,
-  djen_id_original: String(s.djen),
-  djen_hash: s.hash,
-  status_analise_ia: s.status,
-  criado_em: RECEBIDO_EM,
-  payload_json: {
-    id: s.djen,
-    data_disponibilizacao: DISPONIBILIZACAO,
-    siglaTribunal: s.tribunal,
-    tipoComunicacao: s.comunicacao,
-    nomeOrgao: s.orgao,
-    numero_processo: s.processo,
-    nomeClasse: s.classe,
-    tipoDocumento: s.documento,
-    texto: s.texto,
-    link: `https://comunica.pje.jus.br/documentos/${s.djen}`,
-    hash: s.hash,
-    meio: "Diário de Justiça Eletrônico Nacional",
-    destinatarios: [
-      { nome: s.parteAtiva, polo: "A", comunicacao_id: s.djen },
-      { nome: s.partePassiva, polo: "P", comunicacao_id: s.djen },
-    ],
-  },
-}));
+/** Advogados citados nas publicações (dados fictícios). */
+const ADVOGADOS_CITADOS = [
+  { nome: "Mariana Costa", oab: "OAB/RJ 197.254" },
+  { nome: "Pedro Almeida", oab: "OAB/SP 204.812" },
+  { nome: "Ana Oliveira", oab: "OAB/RJ 211.560" },
+  { nome: "Lucas Santos", oab: "OAB/SP 220.114" },
+  { nome: "Beatriz Lima", oab: "OAB/MG 226.905" },
+  { nome: "Rafael Gomes", oab: "OAB/RJ 187.412" },
+];
+
+export const intimacoesDjenRawMock: IntimacaoDjenRaw[] = djenSeeds.map(
+  (s, indice) => ({
+    id: s.id,
+    djen_id_original: String(s.djen),
+    djen_hash: s.hash,
+    status_analise_ia: s.status,
+    criado_em: RECEBIDO_EM,
+    payload_json: {
+      advogados: [
+        ADVOGADOS_CITADOS[indice % ADVOGADOS_CITADOS.length],
+        ADVOGADOS_CITADOS[(indice + 3) % ADVOGADOS_CITADOS.length],
+      ],
+      id: s.djen,
+      data_disponibilizacao: DISPONIBILIZACAO,
+      siglaTribunal: s.tribunal,
+      tipoComunicacao: s.comunicacao,
+      nomeOrgao: s.orgao,
+      numero_processo: s.processo,
+      nomeClasse: s.classe,
+      tipoDocumento: s.documento,
+      texto: s.texto,
+      link: `https://comunica.pje.jus.br/documentos/${s.djen}`,
+      hash: s.hash,
+      meio: "Diário de Justiça Eletrônico Nacional",
+      destinatarios: [
+        { nome: s.parteAtiva, polo: "A", comunicacao_id: s.djen },
+        { nome: s.partePassiva, polo: "P", comunicacao_id: s.djen },
+      ],
+    },
+  }),
+);

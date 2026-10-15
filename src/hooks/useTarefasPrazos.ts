@@ -7,6 +7,9 @@ export const tarefasKeys = {
   detalhe: (id: string) => ["tarefas-prazos", id] as const,
   porAdvogado: (id: string) => ["tarefas-prazos", "advogado", id] as const,
   carga: ["tarefas-prazos", "carga"] as const,
+  capacidade: ["tarefas-prazos", "capacidade"] as const,
+  ativas: ["tarefas-prazos", "ativas"] as const,
+  criticas: ["tarefas-prazos", "criticas"] as const,
   etapas: ["tarefas-prazos", "etapas"] as const,
 };
 
@@ -37,6 +40,30 @@ export function useCargaPorAdvogado() {
   return useQuery({
     queryKey: tarefasKeys.carga,
     queryFn: () => tarefasPrazosService.cargaPorAdvogado(),
+  });
+}
+
+/** Carga operacional por advogado (barra de capacidade — Tela 1 e 1.1). */
+export function useCapacidadeOperacional() {
+  return useQuery({
+    queryKey: tarefasKeys.capacidade,
+    queryFn: () => tarefasPrazosService.obterCapacidade(),
+  });
+}
+
+/** Prazos críticos (< 48h) — central de alertas da topbar. */
+export function useTarefasCriticas() {
+  return useQuery({
+    queryKey: tarefasKeys.criticas,
+    queryFn: () => tarefasPrazosService.listarCriticos(),
+  });
+}
+
+/** Total de tarefas em produção (badge da sidebar). */
+export function useContagemTarefasAtivas() {
+  return useQuery({
+    queryKey: tarefasKeys.ativas,
+    queryFn: () => tarefasPrazosService.contarAtivas(),
   });
 }
 

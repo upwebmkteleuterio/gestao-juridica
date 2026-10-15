@@ -54,9 +54,16 @@ export function PanelHeader({
 
 export interface KpiCardProps {
   titulo: string;
-  valor: ReactNode;
+  valor?: ReactNode;
   contexto?: string;
   icone?: ReactNode;
+  /** Selo opcional exibido ao lado do título (ex.: urgência, pendências). */
+  selo?: ReactNode;
+  /**
+   * Substitui o bloco numérico por um conteúdo próprio — usado pelo card
+   * de capacidade operacional, que traz uma barra gráfica.
+   */
+  conteudo?: ReactNode;
   tom?: "default" | "urgent" | "success";
   carregando?: boolean;
   className?: string;
@@ -68,6 +75,8 @@ export function KpiCard({
   valor,
   contexto,
   icone,
+  selo,
+  conteudo,
   tom = "default",
   carregando = false,
   className,
@@ -86,19 +95,24 @@ export function KpiCard({
         <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
           {titulo}
         </span>
-        {icone ? (
-          <span
-            className={cn(
-              "text-muted-foreground",
-              tom === "urgent" && "text-danger",
-            )}
-          >
-            {icone}
-          </span>
-        ) : null}
+        <span className="flex items-center gap-2">
+          {selo}
+          {icone ? (
+            <span
+              className={cn(
+                "text-muted-foreground",
+                tom === "urgent" && "text-danger",
+              )}
+            >
+              {icone}
+            </span>
+          ) : null}
+        </span>
       </div>
       {carregando ? (
         <Skeleton className="mt-4 h-7 w-16" />
+      ) : conteudo ? (
+        <div className="mt-3">{conteudo}</div>
       ) : (
         <strong
           className={cn(

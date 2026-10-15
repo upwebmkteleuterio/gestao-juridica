@@ -10,6 +10,8 @@ export interface SlidePanelProps {
   titulo: string;
   eyebrow?: string;
   badge?: ReactNode;
+  /** Ações extras do cabeçalho (ex.: copiar o número do processo). */
+  acoes?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
@@ -22,6 +24,7 @@ export function SlidePanel({
   titulo,
   eyebrow,
   badge,
+  acoes,
   children,
   footer,
   className,
@@ -57,14 +60,17 @@ export function SlidePanel({
             <h2 className="truncate">{titulo}</h2>
             {badge ? <div className="mt-3">{badge}</div> : null}
           </div>
-          <IconButton
-            variant="ghost"
-            size="icon-sm"
-            onClick={onClose}
-            aria-label="Fechar painel"
-          >
-            <X className="h-4 w-4" />
-          </IconButton>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {acoes}
+            <IconButton
+              variant="ghost"
+              size="icon-sm"
+              onClick={onClose}
+              aria-label="Fechar painel"
+            >
+              <X className="h-4 w-4" />
+            </IconButton>
+          </div>
         </header>
         <div className="flex-1 overflow-y-auto px-7 py-6">{children}</div>
         {footer ? (

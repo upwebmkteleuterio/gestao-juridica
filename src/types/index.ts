@@ -1,3 +1,4 @@
+export * from "./consulta";
 export * from "./common";
 export * from "./advogado";
 export * from "./intimacaoDjenRaw";

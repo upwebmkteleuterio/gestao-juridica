@@ -18,6 +18,8 @@ interface UiState {
   criterioDistribuicao: CriterioDistribuicao;
   scrollPorRota: Record<string, number>;
   rascunhoPrazoManual: Record<string, unknown>;
+  /** Evita reaplicar as preferências padrão a cada abertura. */
+  preferenciasIniciadas: boolean;
   /** Modais/ painéis usados como rotas (controle auxiliar). */
   modalAberto: string | null;
   painelLateral: { tipo: string | null; id: ID | null };
@@ -34,6 +36,7 @@ interface UiState {
   registrarScroll: (rota: string, posicao: number) => void;
   setRascunhoPrazoManual: (rascunho: Record<string, unknown>) => void;
   limparRascunhoPrazoManual: () => void;
+  marcarPreferenciasIniciadas: () => void;
   abrirModal: (nome: string | null) => void;
   abrirPainelLateral: (tipo: string | null, id?: ID | null) => void;
 }
@@ -61,6 +64,7 @@ export const useUiStore = create<UiState>()(
       criterioDistribuicao: "igualitario",
       scrollPorRota: {},
       rascunhoPrazoManual: {},
+      preferenciasIniciadas: false,
       modalAberto: null,
       painelLateral: { tipo: null, id: null },
 
@@ -79,6 +83,7 @@ export const useUiStore = create<UiState>()(
         set({ scrollPorRota: { ...get().scrollPorRota, [rota]: posicao } }),
       setRascunhoPrazoManual: (rascunhoPrazoManual) => set({ rascunhoPrazoManual }),
       limparRascunhoPrazoManual: () => set({ rascunhoPrazoManual: {} }),
+      marcarPreferenciasIniciadas: () => set({ preferenciasIniciadas: true }),
       abrirModal: (modalAberto) => set({ modalAberto }),
       abrirPainelLateral: (tipo, id = null) =>
         set({ painelLateral: { tipo, id } }),
@@ -93,6 +98,7 @@ export const useUiStore = create<UiState>()(
         criterioDistribuicao: estado.criterioDistribuicao,
         scrollPorRota: estado.scrollPorRota,
         rascunhoPrazoManual: estado.rascunhoPrazoManual,
+        preferenciasIniciadas: estado.preferenciasIniciadas,
       }),
     },
   ),

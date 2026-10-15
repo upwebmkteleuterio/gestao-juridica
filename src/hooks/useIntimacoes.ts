@@ -1,6 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { intimacoesService } from "@/services";
 import type {
+  ConsultaIntimacoes,
   CriterioDistribuicao,
   ID,
   IntimacaoInput,
@@ -8,14 +14,55 @@ import type {
 
 export const intimacoesKeys = {
   all: ["intimacoes"] as const,
-  detalhe: (id: string) => ["intimacoes", id] as const,
-  pendentes: ["intimacoes", "pendentes"] as const,
+  consulta: (consulta: ConsultaIntimacoes) =>
+    ["intimacoes", "consulta", consulta] as const,
+  detalhe: (id: string) => ["intimacoes", "detalhe", id] as const,
+  indicadores: ["intimacoes", "indicadores"] as const,
+  tribunais: ["intimacoes", "tribunais"] as const,
+  pendentes: (consulta: ConsultaIntimacoes) =>
+    ["intimacoes", "pendentes", consulta] as const,
+  contagemPendentes: ["intimacoes", "contagem-pendentes"] as const,
 };
 
-export function useIntimacoes() {
+/** Listagem paginada — filtros, busca e página vão na chave da consulta. */
+export function useConsultaIntimacoes(consulta: ConsultaIntimacoes) {
   return useQuery({
-    queryKey: intimacoesKeys.all,
-    queryFn: () => intimacoesService.getAll(),
+    queryKey: intimacoesKeys.consulta(consulta),
+    queryFn: () => intimacoesService.listar(consulta),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useIndicadoresIntimacoes() {
+  return useQuery({
+    queryKey: intimacoesKeys.indicadores,
+    queryFn: () => intimacoesService.obterIndicadores(),
+  });
+}
+
+export function useTribunaisIntimacoes() {
+  return useQuery({
+    queryKey: intimacoesKeys.tribunais,
+    queryFn: () => intimacoesService.listarTribunais(),
+  });
+}
+
+export function useContagemPendentesIntimacoes() {
+  return useQuery({
+    queryKey: intimacoesKeys.contagemPendentes,
+    queryFn: () => intimacoesService.contarPendentes(),
+  });
+}
+
+/** Pendentes de atribuição dentro do recorte (base da Tela 1.1). */
+export function useIntimacoesPendentes(
+  consulta: ConsultaIntimacoes,
+  habilitado = true,
+) {
+  return useQuery({
+    queryKey: intimacoesKeys.pendentes(consulta),
+    queryFn: () => intimacoesService.listarPendentes(consulta),
+    enabled: habilitado,
   });
 }
 
@@ -27,10 +74,11 @@ export function useIntimacao(id?: string) {
   });
 }
 
-export function useIntimacoesPendentes() {
-  return useQuery({
-    queryKey: intimacoesKeys.pendentes,
-    queryFn: () => intimacoesService.listarPendentesDistribuicao(),
+/** Recorte completo (sem paginação) usado pela exportação. */
+export function useExportarIntimacoes() {
+  return useMutation({
+    mutationFn: (consulta: ConsultaIntimacoes) =>
+      intimacoesService.listarParaExportacao(consulta),
   });
 }
 
@@ -38,7 +86,8 @@ export function useCriarIntimacao() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: IntimacaoInput) => intimacoesService.create(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
   });
 }
 
@@ -47,7 +96,8 @@ export function useAtualizarIntimacao() {
   return useMutation({
     mutationFn: ({ id, input }: { id: ID; input: Partial<IntimacaoInput> }) =>
       intimacoesService.update(id, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
   });
 }
 
@@ -55,27 +105,32 @@ export function useRemoverIntimacao() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: ID) => intimacoesService.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
   });
 }
 
-/** Prévia matemática da distribuição (Tela 1.1). */
-export function usePreviaDistribuicao() {
-  return useMutation({
-    mutationFn: (params: {
-      intimacaoIds: ID[];
-      advogadoIds: ID[];
-      criterio: CriterioDistribuicao;
-    }) =>
-      intimacoesService.calcularPrevia(
-        params.intimacaoIds,
-        params.advogadoIds,
-        params.criterio,
-      ),
+/* ------------------------------------------------------------------ */
+/* Distribuição (Tela 1.1)                                             */
+/* ------------------------------------------------------------------ */
+
+/** Prévia matemática reativa conforme elegíveis/critério mudam. */
+export function usePreviaDistribuicao(
+  params: {
+    intimacaoIds: ID[];
+    advogadoIds: ID[];
+    criterio: CriterioDistribuicao;
+  },
+  habilitado = true,
+) {
+  return useQuery({
+    queryKey: ["distribuicao", "previa", params],
+    queryFn: () => intimacoesService.calcularPrevia(params),
+    enabled:
+      habilitado && params.advogadoIds.length > 0 && params.intimacaoIds.length > 0,
   });
 }
 
-/** Confirma a distribuição e atualiza intimações + tarefas. */
 export function useDistribuirLote() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -87,6 +142,46 @@ export function useDistribuirLote() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: intimacoesKeys.all });
       queryClient.invalidateQueries({ queryKey: ["tarefas-prazos"] });
+      queryClient.invalidateQueries({ queryKey: ["distribuicao"] });
     },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Ações da Tela 1.2                                                   */
+/* ------------------------------------------------------------------ */
+
+export function useEnviarParaEsteira() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: {
+      id: ID;
+      acao_sugerida_ia: string;
+      resumo_ia: string;
+      data_fatal_calculada: string | null;
+      advogado_id: ID;
+    }) => intimacoesService.enviarParaEsteira(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["tarefas-prazos"] });
+    },
+  });
+}
+
+export function useDispensarIntimacao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: ID) => intimacoesService.dispensar(id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
+  });
+}
+
+export function useReativarIntimacao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: ID) => intimacoesService.reativar(id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
   });
 }

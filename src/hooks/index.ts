@@ -1,5 +1,6 @@
 export * from "./useTheme";
 export * from "./useOverlay";
+export * from "./useDebounce";
 export * from "./useAdvogados";
 export * from "./useIntimacoes";
 export * from "./useIntimacoesDjenRaw";

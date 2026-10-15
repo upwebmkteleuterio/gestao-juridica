@@ -1,6 +1,9 @@
 import { LogOut } from "lucide-react";
 import { useMemo } from "react";
-import { useIntimacoesPendentes, useTarefasPrazos } from "@/hooks";
+import {
+  useContagemPendentesIntimacoes,
+  useContagemTarefasAtivas,
+} from "@/hooks";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store";
 import { Avatar, Badge, IconButton } from "@/components/kit";
@@ -16,8 +19,8 @@ export interface SidebarProps {
 export function Sidebar({ aberta, onFechar }: SidebarProps) {
   const usuario = useAuthStore((estado) => estado.usuario);
   const sair = useAuthStore((estado) => estado.sair);
-  const { data: pendentes } = useIntimacoesPendentes();
-  const { data: tarefas } = useTarefasPrazos();
+  const { data: pendentes } = useContagemPendentesIntimacoes();
+  const { data: tarefasAtivas } = useContagemTarefasAtivas();
 
   const grupos = useMemo(
     () =>
@@ -31,9 +34,8 @@ export function Sidebar({ aberta, onFechar }: SidebarProps) {
   );
 
   const contagens: Record<string, number | undefined> = {
-    pendentes: pendentes?.length,
-    tarefas: tarefas?.filter((tarefa) => tarefa.etapa_kanban !== "concluido")
-      .length,
+    pendentes,
+    tarefas: tarefasAtivas,
   };
 
   return (
