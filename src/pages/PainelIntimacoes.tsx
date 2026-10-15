@@ -57,7 +57,8 @@ import {
 import { contarDiasUteis } from "@/lib/datas";
 import { baixarArquivo, gerarCsv } from "@/lib/exportar";
 import { formatarData, truncar } from "@/lib/format";
-import { useAuthStore, useUiStore } from "@/store";
+import { useUsuarioAtual } from "@/hooks";
+import { useUiStore } from "@/store";
 import type { ConsultaIntimacoes, ID } from "@/types";
 
 const TAMANHO_PAGINA = 8;
@@ -68,7 +69,7 @@ const COLUNAS = 9;
  * Filtros, busca e paginação são resolvidos no serviço (nunca na tela).
  */
 export default function PainelIntimacoes() {
-  const usuario = useAuthStore((estado) => estado.usuario);
+  const usuario = useUsuarioAtual();
   const filtros = useUiStore((estado) => estado.filtrosPainel);
   const setFiltros = useUiStore((estado) => estado.setFiltrosPainel);
   const limparFiltros = useUiStore((estado) => estado.limparFiltrosPainel);

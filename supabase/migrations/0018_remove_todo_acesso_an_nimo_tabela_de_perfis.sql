@@ -1,0 +1,1 @@
+revoke all on table public.advogados from anon

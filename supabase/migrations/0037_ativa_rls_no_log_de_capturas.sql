@@ -1,0 +1,1 @@
+alter table public.capturas_djen enable row level security

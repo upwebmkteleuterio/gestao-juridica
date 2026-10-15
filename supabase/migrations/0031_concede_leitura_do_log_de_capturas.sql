@@ -1,0 +1,1 @@
+grant select on table public.capturas_djen to authenticated

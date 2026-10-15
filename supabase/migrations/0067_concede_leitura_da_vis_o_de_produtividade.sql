@@ -1,0 +1,1 @@
+grant select on public.view_produtividade_equipe to authenticated

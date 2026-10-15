@@ -3,9 +3,12 @@ import { useMemo } from "react";
 import {
   useContagemPendentesIntimacoes,
   useContagemTarefasAtivas,
+  useMeuPerfil,
+  useUsuarioAtual,
 } from "@/hooks";
+import { supabase } from "@/integrations/supabase/client";
+import { marcarSaidaIntencional } from "@/lib/sessao";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/store";
 import { Avatar, Badge, IconButton } from "@/components/kit";
 import { GRUPOS_NAVEGACAO } from "./navegacao";
 import { SidebarItem } from "./SidebarItem";
@@ -15,10 +18,9 @@ export interface SidebarProps {
   onFechar: () => void;
 }
 
-/** Menu lateral fixo (navy) — identidade da marca nos dois temas. */
 export function Sidebar({ aberta, onFechar }: SidebarProps) {
-  const usuario = useAuthStore((estado) => estado.usuario);
-  const sair = useAuthStore((estado) => estado.sair);
+  const usuario = useUsuarioAtual();
+  const { data: perfil } = useMeuPerfil();
   const { data: pendentes } = useContagemPendentesIntimacoes();
   const { data: tarefasAtivas } = useContagemTarefasAtivas();
 
@@ -32,11 +34,16 @@ export function Sidebar({ aberta, onFechar }: SidebarProps) {
       })).filter((grupo) => grupo.itens.length > 0),
     [usuario],
   );
-
   const contagens: Record<string, number | undefined> = {
     pendentes,
     tarefas: tarefasAtivas,
   };
+  const nome = perfil?.nome_completo || usuario?.email || "";
+
+  async function sair() {
+    marcarSaidaIntencional();
+    await supabase.auth.signOut();
+  }
 
   return (
     <>
@@ -68,11 +75,9 @@ export function Sidebar({ aberta, onFechar }: SidebarProps) {
             MG
           </span>
           <div>
-            <strong className="block text-[12px] text-white">
-              Gestão jurídica
-            </strong>
+            <strong className="block text-[12px] text-white">Gestão jurídica</strong>
             <small className="block text-[10px] text-white/45">
-              Workspace do escritório
+              Espaço de trabalho do escritório
             </small>
           </div>
         </div>
@@ -88,9 +93,7 @@ export function Sidebar({ aberta, onFechar }: SidebarProps) {
                   <SidebarItem
                     key={item.para}
                     item={item}
-                    contagem={
-                      item.contagem ? contagens[item.contagem] : undefined
-                    }
+                    contagem={item.contagem ? contagens[item.contagem] : undefined}
                   />
                 ))}
               </div>
@@ -99,19 +102,11 @@ export function Sidebar({ aberta, onFechar }: SidebarProps) {
         </nav>
 
         <div className="mt-auto shrink-0 space-y-4 pt-6">
-          <div className="rounded-sm border border-white/10 px-3 py-2.5 text-[10px] text-white/50">
-            <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 align-middle" />
-            DJEN + DeepSeek
-            <span className="mt-0.5 block pl-3 text-white/35">
-              Ambiente de demonstração · a integrar
-            </span>
-          </div>
-
           <div className="flex items-center gap-2.5 border-t border-white/10 pt-4">
-            <Avatar nome={usuario?.nome_completo ?? "?"} tom="gold" />
+            <Avatar nome={nome || "?"} tom="gold" />
             <div className="min-w-0 flex-1">
               <strong className="block truncate text-[11px] text-white">
-                {usuario?.nome_completo ?? "Não autenticado"}
+                {nome}
               </strong>
               <Badge
                 variant="gold"
@@ -123,7 +118,7 @@ export function Sidebar({ aberta, onFechar }: SidebarProps) {
             <IconButton
               variant="ghost"
               size="icon-sm"
-              onClick={sair}
+              onClick={() => void sair()}
               aria-label="Sair do sistema"
               className="text-white/60 hover:bg-white/10 hover:text-white"
             >

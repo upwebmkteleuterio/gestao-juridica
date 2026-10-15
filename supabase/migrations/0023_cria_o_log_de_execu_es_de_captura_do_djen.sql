@@ -1,0 +1,23 @@
+create table public.capturas_djen (
+  id uuid primary key default gen_random_uuid(),
+  oab_numero text not null,
+  oab_uf char(2) not null,
+  tribunal_sigla text,
+  disponibilizacao_de date not null,
+  disponibilizacao_ate date not null,
+  meio text not null default 'D',
+  origem_disparo text not null default 'cron',
+  status public.status_captura not null default 'ocioso',
+  paginas_concluidas integer not null default 0,
+  itens_recebidos integer not null default 0,
+  itens_novos integer not null default 0,
+  itens_duplicados integer not null default 0,
+  parcial boolean not null default false,
+  mensagem text,
+  erro text,
+  disparada_por uuid references auth.users(id) on delete set null,
+  iniciada_em timestamptz not null default now(),
+  concluida_em timestamptz,
+  constraint capturas_djen_origem_check check (origem_disparo in ('manual', 'cron')),
+  constraint capturas_djen_meio_check check (meio in ('D', 'E'))
+)

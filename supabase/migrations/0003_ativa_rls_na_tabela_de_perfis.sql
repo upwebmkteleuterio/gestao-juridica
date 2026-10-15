@@ -1,0 +1,1 @@
+alter table public.advogados enable row level security

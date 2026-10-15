@@ -1,0 +1,1 @@
+create type public.perfil_usuario as enum ('admin', 'advogado')

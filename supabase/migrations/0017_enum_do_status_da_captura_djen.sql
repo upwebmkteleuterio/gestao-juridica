@@ -1,0 +1,1 @@
+create type public.status_captura as enum ('ocioso', 'consultando', 'parcial', 'concluido', 'sem_novidades', 'falha')

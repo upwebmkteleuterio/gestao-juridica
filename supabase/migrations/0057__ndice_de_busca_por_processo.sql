@@ -1,0 +1,1 @@
+create index intimacoes_processo_idx on public.intimacoes (numero_processo)

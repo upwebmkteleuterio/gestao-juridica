@@ -1,0 +1,1 @@
+revoke all on table public.configuracoes_sistema, public.capturas_djen, public.intimacoes_djen_raw, public.intimacoes, public.tarefas_prazos, public.eventos_auditoria from authenticated

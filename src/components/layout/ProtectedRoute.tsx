@@ -1,18 +1,24 @@
 import type { ReactNode } from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { useAuthStore } from "@/store";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useSessao, useUsuarioAtual } from "@/hooks";
 
-/**
- * Casca de autenticação. Hoje valida a sessão simulada; no produto final
- * basta trocar a origem do usuário por um provedor real.
- */
-export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const usuario = useAuthStore((estado) => estado.usuario);
+export function ProtectedRoute({
+  children,
+  somenteAdmin = false,
+}: {
+  children?: ReactNode;
+  somenteAdmin?: boolean;
+}) {
+  const { sessao, definida } = useSessao();
+  const usuario = useUsuarioAtual();
   const local = useLocation();
 
-  if (!usuario) {
+  if (!definida) return <div className="min-h-screen bg-background" aria-busy="true" />;
+  if (!sessao || !usuario) {
     return <Navigate to="/login" replace state={{ de: local.pathname }} />;
   }
-
-  return <>{children}</>;
+  if (somenteAdmin && usuario.perfil !== "admin") {
+    return <Navigate to="/painel" replace />;
+  }
+  return <>{children ?? <Outlet />}</>;
 }

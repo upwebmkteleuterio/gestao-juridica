@@ -1,0 +1,1 @@
+grant select, insert on table public.eventos_auditoria to authenticated

@@ -1,0 +1,1 @@
+create index intimacoes_advogado_idx on public.intimacoes (advogado_id)

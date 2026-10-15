@@ -1,0 +1,1 @@
+create policy advogados_insert_admin on public.advogados for insert to authenticated with check (public.perfil_do_usuario() = 'admin')

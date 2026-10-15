@@ -29,14 +29,21 @@
 - `/mocks`: dados de exemplo, um arquivo por entidade. Nenhum dado fixo em `/services`.
 - `/services`: camada de repositório, um arquivo por entidade (futura tabela Supabase). CRUD completo (`getAll`, `getById`, `create`, `update`, `remove`) sobre `criarRepositorio`, persistindo em `localStorage` com **latência simulada de 500 ms**.
 - `/hooks`: lógica de dados com React Query (uma família de hooks por entidade) + hooks de UI (`useTheme`, `useOverlay`).
-- `/store`: estado global com Zustand + `persist` (sessão simulada em `authStore`; tema, filtros, scroll e rascunhos em `uiStore`).
+- `/store`: estado global com Zustand + `persist` para tema, filtros, scroll e rascunhos em `uiStore`. A sessão real do Supabase permanece apenas em memória e nunca é persistida localmente.
 
 # Rotas
 
-- Pública: `/login` (sessão simulada com escolha de perfil admin/advogado) e `/styleguide` (**playground temporário do UI Kit** — remover quando a validação terminar).
-- Protegidas por `ProtectedRoute` + `AppShell` (`<Outlet />`): `/painel`, `/painel/distribuicao`, `/painel/publicacao/:id`, `/esteira`, `/esteira/tarefa/:id`, `/esteira/novo-prazo`, `/djen`, `/djen/nova-consulta`, `/djen/payload/:id`, `/equipe`, `/equipe/novo`, `/equipe/advogado/:id`, `/configuracoes`, `/configuracoes/editar`.
+- Públicas: `/login`, `/auth/callback` e `/redefinir-senha`. `/styleguide` é protegido e temporário (**playground do UI Kit** — remover quando a validação terminar).
+- Protegidas por `ProtectedRoute` + `AppShell` (`<Outlet />`): `/painel`, `/painel/distribuicao`, `/painel/publicacao/:id`, `/esteira`, `/esteira/tarefa/:id`, `/esteira/novo-prazo`, `/djen`, `/djen/nova-consulta`, `/djen/payload/:id`, `/equipe`, `/equipe/novo`, `/equipe/advogado/:id`.
 - Telas de modal/painel (1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1) são **sobreposições route-driven**: a rota base renderiza a tela de listagem e a rota da sobreposição renderiza a mesma tela com o modal/painel aberto, preservando o contexto. Fechar sempre volta para a rota base.
-- Perfis de acesso: `admin` (sócio/gestor) e `advogado`. O advogado só vê Painel e Esteira na sidebar; Consulta DJEN, Equipe e Configurações são exclusivas do admin.
+- Perfis de acesso: `admin` (sócio/gestor) e `advogado`. Consulta DJEN e Equipe são exclusivas do admin.
+
+## Perfil do Sistema e regras de acesso
+
+- Existem exatamente dois perfis: `admin` (inclui o antigo conceito de superadmin) e `advogado`.
+- O escritório é single-tenant e colaborativo: dados de processos são compartilhados entre todos os usuários autenticados; controles e credenciais são exclusivos do admin; nenhum dado é acessível anonimamente.
+- A sessão do Supabase é a fonte de verdade do usuário logado. A role da interface é lida exclusivamente de `session.user.app_metadata.perfil`, nunca de `user_metadata`.
+- Nenhum dado de exemplo vai para o banco.
 
 # Referências
 

@@ -1,0 +1,1 @@
+alter table public.intimacoes enable row level security

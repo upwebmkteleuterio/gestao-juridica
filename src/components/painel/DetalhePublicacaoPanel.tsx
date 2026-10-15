@@ -34,7 +34,7 @@ import {
 } from "@/hooks";
 import { contarDiasUteis } from "@/lib/datas";
 import { formatarData } from "@/lib/format";
-import { useAuthStore } from "@/store";
+import { useUsuarioAtual } from "@/hooks";
 
 export interface DetalhePublicacaoPanelProps {
   intimacaoId: string | null;
@@ -54,7 +54,7 @@ export function DetalhePublicacaoPanel({
   onClose,
 }: DetalhePublicacaoPanelProps) {
   const aberto = Boolean(intimacaoId);
-  const usuario = useAuthStore((estado) => estado.usuario);
+  const usuario = useUsuarioAtual();
 
   const intimacaoQuery = useIntimacao(intimacaoId ?? undefined);
   const intimacao = intimacaoQuery.data ?? null;

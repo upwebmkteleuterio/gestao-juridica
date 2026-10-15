@@ -1,0 +1,1 @@
+create policy configuracoes_update_admin on public.configuracoes_sistema for update to authenticated using (public.perfil_do_usuario() = 'admin') with check (public.perfil_do_usuario() = 'admin')

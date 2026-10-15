@@ -1,0 +1,1 @@
+create policy intimacoes_update_autenticado on public.intimacoes for update to authenticated using (true) with check (true)

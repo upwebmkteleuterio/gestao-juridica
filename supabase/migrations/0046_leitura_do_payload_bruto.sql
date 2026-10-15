@@ -1,0 +1,1 @@
+create policy raw_select_autenticado on public.intimacoes_djen_raw for select to authenticated using (true)

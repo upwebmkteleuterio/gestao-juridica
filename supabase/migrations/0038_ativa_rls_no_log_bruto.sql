@@ -1,0 +1,1 @@
+alter table public.intimacoes_djen_raw enable row level security

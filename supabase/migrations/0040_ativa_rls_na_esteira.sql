@@ -1,0 +1,1 @@
+alter table public.tarefas_prazos enable row level security

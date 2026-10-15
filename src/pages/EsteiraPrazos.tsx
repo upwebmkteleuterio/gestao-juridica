@@ -17,8 +17,8 @@ import {
   KanbanBoard,
   PrazoManualModal,
 } from "@/components/esteira";
-import { useAdvogados, useEsteira, useMoverEtapa } from "@/hooks";
-import { useAuthStore, useUiStore } from "@/store";
+import { useAdvogados, useEsteira, useMoverEtapa, useUsuarioAtual } from "@/hooks";
+import { useUiStore } from "@/store";
 import type { EtapaKanban, TarefaPrazo, UrgenciaEsteira } from "@/types";
 
 const ROTULOS_ETAPA: Record<EtapaKanban, string> = {
@@ -38,7 +38,7 @@ const FILTROS_URGENCIA: { valor: UrgenciaEsteira; rotulo: string; contagem: "tot
 ];
 
 export default function EsteiraPrazos() {
-  const usuario = useAuthStore((estado) => estado.usuario);
+  const usuario = useUsuarioAtual();
   const filtro = useUiStore((estado) => estado.filtroEsteira);
   const setFiltroEsteira = useUiStore((estado) => estado.setFiltroEsteira);
   const esteiraIniciada = useUiStore((estado) => estado.esteiraIniciada);

@@ -1,0 +1,1 @@
+create policy intimacoes_insert_autenticado on public.intimacoes for insert to authenticated with check (true)

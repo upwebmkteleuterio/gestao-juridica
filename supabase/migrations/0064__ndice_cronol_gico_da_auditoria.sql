@@ -1,0 +1,1 @@
+create index auditoria_criado_idx on public.eventos_auditoria (criado_em desc)

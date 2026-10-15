@@ -2,7 +2,6 @@ import {
   Kanban,
   LayoutDashboard,
   Radar,
-  Settings2,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -59,12 +58,6 @@ export const GRUPOS_NAVEGACAO: GrupoNavegacao[] = [
         icone: Users,
         perfis: ["admin"],
       },
-      {
-        para: "/configuracoes",
-        rotulo: "Configurações & IA",
-        icone: Settings2,
-        perfis: ["admin"],
-      },
     ],
   },
 ];
@@ -79,6 +72,4 @@ export const DESCRICAO_MODULOS: Record<string, string> = {
     "Monitoramento das capturas oficiais, OABs e auditoria dos payloads.",
   "/equipe":
     "Cadastro da equipe, elegibilidade e controle de carga operacional.",
-  "/configuracoes":
-    "Integrações, OABs monitoradas, chaves e prompt do motor de IA.",
 };

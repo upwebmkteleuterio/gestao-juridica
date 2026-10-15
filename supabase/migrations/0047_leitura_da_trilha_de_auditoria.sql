@@ -1,0 +1,1 @@
+create policy auditoria_select_autenticado on public.eventos_auditoria for select to authenticated using (true)

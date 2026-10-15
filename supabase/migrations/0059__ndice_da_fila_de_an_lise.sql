@@ -1,0 +1,1 @@
+create index raw_status_idx on public.intimacoes_djen_raw (status_analise_ia)

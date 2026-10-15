@@ -1,0 +1,1 @@
+create type public.status_fluxo_intimacao as enum ('triagem', 'fila', 'dispensado')

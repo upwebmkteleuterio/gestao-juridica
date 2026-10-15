@@ -1,0 +1,1 @@
+create index tarefas_advogado_idx on public.tarefas_prazos (advogado_id)

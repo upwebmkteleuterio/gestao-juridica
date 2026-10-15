@@ -1,0 +1,1 @@
+alter default privileges in schema public revoke insert, select, update, delete on tables from authenticated

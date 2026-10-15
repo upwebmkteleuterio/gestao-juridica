@@ -1,0 +1,1 @@
+create index tarefas_etapa_idx on public.tarefas_prazos (etapa_kanban)

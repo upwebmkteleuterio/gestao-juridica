@@ -1,0 +1,1 @@
+create trigger advogados_sync_perfil after insert or update of perfil on public.advogados for each row execute function public.sincronizar_perfil_no_token()

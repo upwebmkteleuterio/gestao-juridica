@@ -1,0 +1,1 @@
+create index intimacoes_status_idx on public.intimacoes (status_fluxo)

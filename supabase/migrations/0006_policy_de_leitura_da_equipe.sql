@@ -1,0 +1,1 @@
+create policy advogados_select_autenticado on public.advogados for select to authenticated using (true)

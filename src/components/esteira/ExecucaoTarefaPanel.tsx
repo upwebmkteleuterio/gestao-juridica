@@ -17,8 +17,7 @@ import {
   Textarea,
 } from "@/components/kit";
 import { ETAPAS_KANBAN } from "@/services";
-import { useAuthStore } from "@/store";
-import { useAdvogados, useAtualizarTarefaPrazo, useEventosPorEntidade, useRegistrarEvento, useTarefaPrazo } from "@/hooks";
+import { useAdvogados, useAtualizarTarefaPrazo, useEventosPorEntidade, useRegistrarEvento, useTarefaPrazo, useUsuarioAtual } from "@/hooks";
 import { formatarData, formatarDataHora } from "@/lib/format";
 import { horasAte } from "@/lib/datas";
 import type { EtapaKanban } from "@/types";
@@ -43,7 +42,7 @@ const ROTULOS_ACAO: Record<string, string> = {
 };
 
 export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelProps) {
-  const usuario = useAuthStore((estado) => estado.usuario);
+  const usuario = useUsuarioAtual();
   const tarefaQuery = useTarefaPrazo(tarefaId ?? undefined);
   const tarefa = tarefaQuery.data;
   const { data: advogados } = useAdvogados();

@@ -18,7 +18,7 @@ import {
 } from "@/hooks";
 import { MAX_DIAS_CAPTURA } from "@/services";
 import { UFS } from "@/lib/ufs";
-import { useAuthStore } from "@/store";
+import { useUsuarioAtual } from "@/hooks";
 
 export interface CapturaModalProps {
   open: boolean;
@@ -39,7 +39,7 @@ function diferencaEmDias(de: string, ate: string): number {
 }
 
 export function CapturaModal({ open, onClose }: CapturaModalProps) {
-  const usuario = useAuthStore((estado) => estado.usuario);
+  const usuario = useUsuarioAtual();
   const configuracoes = useConfiguracoes();
   const tribunais = useTribunaisDjen();
   const disparar = useDispararConsultaDjen();

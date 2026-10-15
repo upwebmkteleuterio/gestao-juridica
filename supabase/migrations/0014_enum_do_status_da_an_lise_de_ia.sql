@@ -1,0 +1,1 @@
+create type public.status_analise_ia as enum ('pendente', 'sucesso', 'falha')

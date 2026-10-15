@@ -1,0 +1,1 @@
+create index capturas_iniciada_idx on public.capturas_djen (iniciada_em desc)

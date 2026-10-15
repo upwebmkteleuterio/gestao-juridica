@@ -1,0 +1,1 @@
+alter table public.configuracoes_sistema enable row level security

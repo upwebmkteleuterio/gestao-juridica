@@ -1,0 +1,1 @@
+create policy auditoria_insert_autenticado on public.eventos_auditoria for insert to authenticated with check (true)

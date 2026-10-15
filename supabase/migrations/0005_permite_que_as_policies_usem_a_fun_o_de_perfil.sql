@@ -1,0 +1,1 @@
+grant execute on function public.perfil_do_usuario() to authenticated

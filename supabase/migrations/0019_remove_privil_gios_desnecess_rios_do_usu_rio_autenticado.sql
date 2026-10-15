@@ -1,0 +1,1 @@
+revoke truncate, maintain, references, trigger on table public.advogados from authenticated

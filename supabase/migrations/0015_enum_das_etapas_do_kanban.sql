@@ -1,0 +1,1 @@
+create type public.etapa_kanban as enum ('fila', 'redacao', 'revisao', 'pronto_protocolo', 'concluido')

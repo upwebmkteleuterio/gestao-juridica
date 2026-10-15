@@ -1,0 +1,1 @@
+create policy intimacoes_select_autenticado on public.intimacoes for select to authenticated using (true)

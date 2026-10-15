@@ -1,0 +1,1 @@
+create index tarefas_data_fatal_idx on public.tarefas_prazos (data_fatal)

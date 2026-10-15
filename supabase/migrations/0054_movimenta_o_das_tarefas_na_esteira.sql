@@ -1,0 +1,1 @@
+create policy tarefas_update_autenticado on public.tarefas_prazos for update to authenticated using (true) with check (true)

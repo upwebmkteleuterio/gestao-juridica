@@ -1,0 +1,1 @@
+create index intimacoes_data_fatal_idx on public.intimacoes (data_fatal_calculada)

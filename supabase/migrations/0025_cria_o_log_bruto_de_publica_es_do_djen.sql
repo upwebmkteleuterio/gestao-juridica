@@ -1,0 +1,20 @@
+create table public.intimacoes_djen_raw (
+  id uuid primary key default gen_random_uuid(),
+  djen_id bigint not null unique,
+  djen_hash text not null,
+  payload_json jsonb not null,
+  captura_id uuid references public.capturas_djen(id) on delete set null,
+  oab_consultada text,
+  data_disponibilizacao date,
+  sigla_tribunal text,
+  nome_orgao text,
+  tipo_comunicacao text,
+  tipo_documento text,
+  nome_classe text,
+  numero_processo text,
+  meio text,
+  link text,
+  texto text,
+  status_analise_ia public.status_analise_ia not null default 'pendente',
+  criado_em timestamptz not null default now()
+)

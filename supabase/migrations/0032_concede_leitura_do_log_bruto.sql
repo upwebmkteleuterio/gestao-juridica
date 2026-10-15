@@ -1,0 +1,1 @@
+grant select on table public.intimacoes_djen_raw to authenticated

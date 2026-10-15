@@ -1,0 +1,1 @@
+create type public.origem_tarefa as enum ('djen', 'manual')

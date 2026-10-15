@@ -1,0 +1,1 @@
+create policy tarefas_insert_autenticado on public.tarefas_prazos for insert to authenticated with check (true)

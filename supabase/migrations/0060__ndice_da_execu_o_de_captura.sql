@@ -1,0 +1,1 @@
+create index raw_captura_idx on public.intimacoes_djen_raw (captura_id)

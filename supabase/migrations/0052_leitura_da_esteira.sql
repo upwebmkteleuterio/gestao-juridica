@@ -1,0 +1,1 @@
+create policy tarefas_select_autenticado on public.tarefas_prazos for select to authenticated using (true)

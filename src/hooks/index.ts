@@ -7,3 +7,4 @@ export * from "./useIntimacoesDjenRaw";
 export * from "./useTarefasPrazos";
 export * from "./useConfiguracoes";
 export * from "./useEventosAuditoria";
+export * from "./useSessao";

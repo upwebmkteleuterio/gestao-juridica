@@ -1,0 +1,1 @@
+create policy advogados_update_admin on public.advogados for update to authenticated using (public.perfil_do_usuario() = 'admin') with check (public.perfil_do_usuario() = 'admin')

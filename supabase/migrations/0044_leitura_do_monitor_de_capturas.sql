@@ -1,0 +1,1 @@
+create policy capturas_select_autenticado on public.capturas_djen for select to authenticated using (true)

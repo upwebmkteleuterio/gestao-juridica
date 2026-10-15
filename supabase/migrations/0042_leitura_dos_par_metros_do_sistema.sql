@@ -1,0 +1,1 @@
+create policy configuracoes_select_autenticado on public.configuracoes_sistema for select to authenticated using (true)

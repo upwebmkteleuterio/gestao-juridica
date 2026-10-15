@@ -1,0 +1,1 @@
+create policy configuracoes_insert_admin on public.configuracoes_sistema for insert to authenticated with check (public.perfil_do_usuario() = 'admin')

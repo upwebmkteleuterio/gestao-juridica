@@ -1,0 +1,1 @@
+create policy advogados_delete_admin on public.advogados for delete to authenticated using (public.perfil_do_usuario() = 'admin')
