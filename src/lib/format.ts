@@ -48,3 +48,28 @@ export function diasAte(
 export function formatarOab(numero: string, uf: string): string {
   return `OAB/${uf} ${numero}`;
 }
+
+/** Máscara progressiva do número único CNJ: `0000000-00.0000.0.00.0000`. */
+export function mascararCnj(valor: string): string {
+  const digitos = valor.replace(/\D/g, "").slice(0, 20);
+  const blocos = [
+    digitos.slice(0, 7),
+    digitos.slice(7, 9),
+    digitos.slice(9, 13),
+    digitos.slice(13, 14),
+    digitos.slice(14, 16),
+    digitos.slice(16, 20),
+  ];
+  let saida = blocos[0];
+  if (blocos[1]) saida += `-${blocos[1]}`;
+  if (blocos[2]) saida += `.${blocos[2]}`;
+  if (blocos[3]) saida += `.${blocos[3]}`;
+  if (blocos[4]) saida += `.${blocos[4]}`;
+  if (blocos[5]) saida += `.${blocos[5]}`;
+  return saida;
+}
+
+/** O número CNJ é válido quando possui os 20 dígitos exigidos. */
+export function cnjValido(valor: string): boolean {
+  return valor.replace(/\D/g, "").length === 20;
+}

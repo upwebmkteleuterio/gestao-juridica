@@ -1,12 +1,18 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { CriterioDistribuicao, FiltroIntimacoes, ID } from "@/types";
+import type {
+  CriterioDistribuicao,
+  EscopoEsteira,
+  FiltroIntimacoes,
+  ID,
+  UrgenciaEsteira,
+} from "@/types";
 
 export type Tema = "light" | "dark";
 
 export interface FiltroEsteira {
-  escopo: "meus" | "geral";
-  urgencia: "todos" | "criticos" | "hoje" | "semana" | "em_dia";
+  escopo: EscopoEsteira;
+  urgencia: UrgenciaEsteira;
 }
 
 interface UiState {
@@ -20,6 +26,8 @@ interface UiState {
   rascunhoPrazoManual: Record<string, unknown>;
   /** Evita reaplicar as preferências padrão a cada abertura. */
   preferenciasIniciadas: boolean;
+  /** Evita reaplicar o escopo padrão da Esteira a cada abertura. */
+  esteiraIniciada: boolean;
   /** Modais/ painéis usados como rotas (controle auxiliar). */
   modalAberto: string | null;
   painelLateral: { tipo: string | null; id: ID | null };
@@ -37,6 +45,7 @@ interface UiState {
   setRascunhoPrazoManual: (rascunho: Record<string, unknown>) => void;
   limparRascunhoPrazoManual: () => void;
   marcarPreferenciasIniciadas: () => void;
+  marcarEsteiraIniciada: () => void;
   abrirModal: (nome: string | null) => void;
   abrirPainelLateral: (tipo: string | null, id?: ID | null) => void;
 }
@@ -65,6 +74,7 @@ export const useUiStore = create<UiState>()(
       scrollPorRota: {},
       rascunhoPrazoManual: {},
       preferenciasIniciadas: false,
+      esteiraIniciada: false,
       modalAberto: null,
       painelLateral: { tipo: null, id: null },
 
@@ -84,6 +94,7 @@ export const useUiStore = create<UiState>()(
       setRascunhoPrazoManual: (rascunhoPrazoManual) => set({ rascunhoPrazoManual }),
       limparRascunhoPrazoManual: () => set({ rascunhoPrazoManual: {} }),
       marcarPreferenciasIniciadas: () => set({ preferenciasIniciadas: true }),
+      marcarEsteiraIniciada: () => set({ esteiraIniciada: true }),
       abrirModal: (modalAberto) => set({ modalAberto }),
       abrirPainelLateral: (tipo, id = null) =>
         set({ painelLateral: { tipo, id } }),
@@ -99,6 +110,7 @@ export const useUiStore = create<UiState>()(
         scrollPorRota: estado.scrollPorRota,
         rascunhoPrazoManual: estado.rascunhoPrazoManual,
         preferenciasIniciadas: estado.preferenciasIniciadas,
+        esteiraIniciada: estado.esteiraIniciada,
       }),
     },
   ),

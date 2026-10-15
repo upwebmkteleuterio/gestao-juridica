@@ -16,8 +16,6 @@ import PainelIntimacoes from "./pages/PainelIntimacoes";
 
 /* Menu 2 — Esteira de Prazos */
 import EsteiraPrazos from "./pages/EsteiraPrazos";
-import EsteiraTarefa from "./pages/EsteiraTarefa";
-import EsteiraPrazoManual from "./pages/EsteiraPrazoManual";
 
 /* Menu 3 — Consulta & Captura DJEN */
 import DjenMonitor from "./pages/DjenMonitor";
@@ -81,13 +79,13 @@ const App = () => (
               element={<PainelIntimacoes />}
             />
 
-            {/* Menu 2 — Esteira de Prazos */}
+            {/* Menu 2 — Esteira de Prazos.
+                2.1 (execução/protocolo) e 2.2 (prazo manual) são
+                sobreposições da Tela 2, então compartilham a rota base e
+                mantêm o contexto do Kanban. */}
             <Route path="/esteira" element={<EsteiraPrazos />} />
-            <Route path="/esteira/tarefa/:id" element={<EsteiraTarefa />} />
-            <Route
-              path="/esteira/novo-prazo"
-              element={<EsteiraPrazoManual />}
-            />
+            <Route path="/esteira/tarefa/:id" element={<EsteiraPrazos />} />
+            <Route path="/esteira/novo-prazo" element={<EsteiraPrazos />} />
 
             {/* Menu 3 — Consulta & Captura DJEN */}
             <Route path="/djen" element={<DjenMonitor />} />

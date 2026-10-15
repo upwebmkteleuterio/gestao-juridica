@@ -1,12 +1,18 @@
-import { advogadosMock, tarefasPrazosMock } from "@/mocks";
+import { advogadosMock, intimacoesMock, tarefasPrazosMock } from "@/mocks";
+import { diasAte } from "@/lib/format";
 import { slaDeDataFatal } from "@/lib/sla";
 import type {
   Advogado,
   CargaAdvogado,
+  ConsultaEsteira,
   EtapaKanban,
   ID,
+  Intimacao,
+  ResultadoEsteira,
+  ResumoUrgenciaEsteira,
   TarefaPrazo,
   TarefaPrazoInput,
+  UrgenciaEsteira,
 } from "@/types";
 import {
   CHAVES,
@@ -50,12 +56,120 @@ const repositorio = criarRepositorio<TarefaPrazo, TarefaPrazoInput>({
   }),
 });
 
+/** Sigla do tribunal do card: informada no cadastro ou herdada da intimação. */
+function tribunalDaTarefa(
+  tarefa: TarefaPrazo,
+  intimacoes: Intimacao[],
+): string | null {
+  if (tarefa.tribunal_sigla) return tarefa.tribunal_sigla;
+  if (!tarefa.intimacao_id) return null;
+  return (
+    intimacoes.find((intimacao) => intimacao.id === tarefa.intimacao_id)
+      ?.tribunal_sigla ?? null
+  );
+}
+
+/** Faixas das pílulas de urgência da Tela 2 (SLA lido da data fatal). */
+function correspondeUrgencia(
+  tarefa: TarefaPrazo,
+  urgencia: UrgenciaEsteira,
+): boolean {
+  const sla = slaDeDataFatal(tarefa.data_fatal);
+  const dias = diasAte(tarefa.data_fatal);
+  switch (urgencia) {
+    case "criticos":
+      return sla.critico;
+    case "hoje":
+      return dias === 0;
+    case "semana":
+      return dias !== null && dias >= 0 && dias <= 7;
+    case "em_dia":
+      return !sla.critico && (dias === null || dias > 5);
+    default:
+      return true;
+  }
+}
+
+/** Ordenação do Kanban: `data_fatal` ascendente, sem prazo por último. */
+function ordenarPorFatal(a: TarefaPrazo, b: TarefaPrazo): number {
+  const fatalA = a.data_fatal ?? "9999-12-31";
+  const fatalB = b.data_fatal ?? "9999-12-31";
+  if (fatalA !== fatalB) return fatalA.localeCompare(fatalB);
+  return a.tipo_peca.localeCompare(b.tipo_peca);
+}
+
 /** Repositório da tabela `tarefas_prazos` (Kanban de produção). */
 export const tarefasPrazosService = {
   ...repositorio,
 
+  /**
+   * Mesma tarefa, com a sigla do tribunal resolvida (herdada da intimação
+   * quando a origem é o DJEN) — usada pela execução da tarefa (Tela 2.1).
+   */
+  async getById(id: ID): Promise<TarefaPrazo | null> {
+    const tarefa = await repositorio.getById(id);
+    if (!tarefa) return null;
+    const intimacoes = lerColecao<Intimacao>(CHAVES.intimacoes, intimacoesMock);
+    return { ...tarefa, tribunal_sigla: tribunalDaTarefa(tarefa, intimacoes) };
+  },
+
   async moverEtapa(id: ID, etapa_kanban: EtapaKanban): Promise<TarefaPrazo> {
     return repositorio.update(id, { etapa_kanban });
+  },
+
+  /**
+   * Kanban da Tela 2. O escopo (pauta pessoal/geral) e a urgência são
+   * resolvidos aqui; a tela apenas desenha as colunas devolvidas.
+   */
+  async listarEsteira(
+    consulta: ConsultaEsteira = {},
+  ): Promise<ResultadoEsteira> {
+    const intimacoes = lerColecao<Intimacao>(CHAVES.intimacoes, intimacoesMock);
+    const tarefas = lerColecao<TarefaPrazo>(
+      CHAVES.tarefasPrazos,
+      tarefasPrazosMock,
+    );
+
+    const base = tarefas
+      .filter((tarefa) => {
+        if (
+          consulta.escopo === "meus" &&
+          consulta.advogadoId &&
+          tarefa.advogado_id !== consulta.advogadoId
+        ) {
+          return false;
+        }
+        return true;
+      })
+      .map((tarefa) => ({
+        ...tarefa,
+        tribunal_sigla: tribunalDaTarefa(tarefa, intimacoes),
+      }));
+
+    const ativas = base.filter((tarefa) => tarefa.etapa_kanban !== "concluido");
+    const resumo: ResumoUrgenciaEsteira = {
+      criticos: ativas.filter((t) => correspondeUrgencia(t, "criticos")).length,
+      hoje: ativas.filter((t) => correspondeUrgencia(t, "hoje")).length,
+      semana: ativas.filter((t) => correspondeUrgencia(t, "semana")).length,
+      emDia: ativas.filter((t) => correspondeUrgencia(t, "em_dia")).length,
+      total: base.length,
+    };
+
+    const urgencia = consulta.urgencia ?? "todos";
+    const filtradas =
+      urgencia === "todos"
+        ? base
+        : ativas.filter((tarefa) => correspondeUrgencia(tarefa, urgencia));
+    const ordenadas = [...filtradas].sort(ordenarPorFatal);
+
+    return delay({
+      colunas: ETAPAS_KANBAN.map((etapa) => ({
+        etapa,
+        tarefas: ordenadas.filter((tarefa) => tarefa.etapa_kanban === etapa),
+      })),
+      resumo,
+      total: ordenadas.length,
+    });
   },
 
   async listarPorAdvogado(advogado_id: ID): Promise<TarefaPrazo[]> {

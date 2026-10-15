@@ -1,6 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { tarefasPrazosService } from "@/services";
-import type { EtapaKanban, TarefaPrazoInput } from "@/types";
+import type {
+  ConsultaEsteira,
+  EtapaKanban,
+  TarefaPrazoInput,
+} from "@/types";
 
 export const tarefasKeys = {
   all: ["tarefas-prazos"] as const,
@@ -11,12 +20,23 @@ export const tarefasKeys = {
   ativas: ["tarefas-prazos", "ativas"] as const,
   criticas: ["tarefas-prazos", "criticas"] as const,
   etapas: ["tarefas-prazos", "etapas"] as const,
+  esteira: (consulta: ConsultaEsteira) =>
+    ["tarefas-prazos", "esteira", consulta] as const,
 };
 
 export function useTarefasPrazos() {
   return useQuery({
     queryKey: tarefasKeys.all,
     queryFn: () => tarefasPrazosService.getAll(),
+  });
+}
+
+/** Kanban da Tela 2 — escopo e urgência vão na chave da consulta. */
+export function useEsteira(consulta: ConsultaEsteira) {
+  return useQuery({
+    queryKey: tarefasKeys.esteira(consulta),
+    queryFn: () => tarefasPrazosService.listarEsteira(consulta),
+    placeholderData: keepPreviousData,
   });
 }
 

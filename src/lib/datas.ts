@@ -12,6 +12,20 @@ export function hojeISO(fuso = "America/Sao_Paulo"): string {
 }
 
 /**
+ * Horas restantes até o fim do dia da data fatal (negativo = já vencido).
+ * Base do cronômetro regressivo exibido na execução da tarefa (Tela 2.1).
+ */
+export function horasAte(
+  dataFatal?: string | null,
+  referencia: Date = new Date(),
+): number | null {
+  if (!dataFatal) return null;
+  const alvo = new Date(`${dataFatal.slice(0, 10)}T23:59:59-03:00`);
+  if (Number.isNaN(alvo.getTime())) return null;
+  return Math.round((alvo.getTime() - referencia.getTime()) / 3_600_000);
+}
+
+/**
  * Conta dias úteis (seg–sex) após a data inicial, até a data final.
  * Não considera feriados e serve apenas como referência visual — a
  * conferência do prazo é sempre humana.
