@@ -1,15 +1,7 @@
 import { useMemo } from "react";
-import { Copy } from "lucide-react";
+import { Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Alert,
-  AnaliseBadge,
-  Badge,
-  Button,
-  IconButton,
-  Skeleton,
-  SlidePanel,
-} from "@/components/kit";
+import { Alert, AnaliseBadge, Badge, Button, IconButton, Skeleton, SlidePanel } from "@/components/kit";
 import { useIntimacaoDjenRaw } from "@/hooks";
 import { formatarData, formatarDataHora, truncar } from "@/lib/format";
 
@@ -32,22 +24,28 @@ function urlSegura(valor: unknown): string | null {
   }
 }
 
+function listaDeRegistros(valor: unknown): Record<string, unknown>[] {
+  return Array.isArray(valor) ? valor.filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null && !Array.isArray(item)) : [];
+}
+
+function nomeOab(item: Record<string, unknown>) {
+  const nome = texto(item.nome);
+  const numero = texto(item.numeroOab ?? item.numero_oab ?? item.oab);
+  const uf = texto(item.ufOab ?? item.uf_oab);
+  const oab = numero === "—" ? "" : `${numero}${uf === "—" ? "" : `/${uf}`}`;
+  return oab ? `${nome} · OAB ${oab}` : nome;
+}
+
 export function PayloadPanel({ payloadId, onClose }: PayloadPanelProps) {
   const query = useIntimacaoDjenRaw(payloadId ?? undefined);
   const payload = query.data ?? null;
-  const jsonBruto = useMemo(
-    () => (payload ? JSON.stringify(payload.payload_json, null, 2) : ""),
-    [payload],
-  );
+  const jsonBruto = useMemo(() => (payload ? JSON.stringify(payload.payload_json, null, 2) : ""), [payload]);
   const json = payload?.payload_json;
-  const advogados = Array.isArray(json?.advogados)
-    ? json.advogados.filter(
-        (item): item is Record<string, unknown> =>
-          typeof item === "object" && item !== null && !Array.isArray(item),
-      )
-    : [];
-  const dataDisponibilizacao = texto(json?.data_disponibilizacao);
+  const destinatarios = listaDeRegistros(json?.destinatarios);
+  const advogados = listaDeRegistros(json?.destinatarioadvogados);
+  const dataDisponibilizacao = texto(json?.data_disponibilizacao ?? json?.datadisponibilizacao);
   const link = urlSegura(json?.link);
+  const hashCertidao = typeof json?.hash === "string" && json.hash.trim() ? json.hash : "";
 
   async function copiarJson() {
     try {
@@ -60,112 +58,51 @@ export function PayloadPanel({ payloadId, onClose }: PayloadPanelProps) {
   }
 
   return (
-    <SlidePanel
-      open={Boolean(payloadId)}
-      onClose={onClose}
-      eyebrow="Payload da API · Tela 3.2"
+    <SlidePanel open={Boolean(payloadId)} onClose={onClose} eyebrow="Payload da API · Tela 3.2"
       titulo={payload?.djen_id_original ?? "Carregando payload…"}
-      badge={payload ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="navy">{texto(json?.siglaTribunal)}</Badge>
-          <Badge variant="neutral" title={payload.djen_hash}>
-            {truncar(payload.djen_hash, 16)}
-          </Badge>
-          <AnaliseBadge status={payload.status_analise_ia} />
-        </div>
-      ) : null}
-      acoes={payload ? (
-        <IconButton
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Copiar JSON bruto"
-          onClick={copiarJson}
-        >
-          <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-        </IconButton>
-      ) : null}
-    >
-      {query.isLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-24" />
-          <Skeleton className="h-36" />
-        </div>
-      ) : query.isError || !payload ? (
-        <Alert severidade="danger" titulo="Não foi possível carregar o payload." />
-      ) : (
-        <div className="space-y-6">
-          <section>
-            <h3 className="mb-3">Metadados técnicos</h3>
-            <dl className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-              <div>
-                <dt className="label-kit">Meio de comunicação</dt>
-                <dd className="mt-1 text-[11px]">{texto(json?.meio)}</dd>
+      badge={payload ? <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="navy">{texto(json?.siglaTribunal)}</Badge>
+        <Badge variant="neutral" title={payload.djen_hash}>{truncar(payload.djen_hash, 16)}</Badge>
+        <AnaliseBadge status={payload.status_analise_ia} />
+      </div> : null}
+      acoes={payload ? <IconButton variant="ghost" size="icon-sm" aria-label="Copiar JSON bruto" onClick={copiarJson}>
+        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+      </IconButton> : null}>
+      {query.isLoading ? <div className="space-y-4"><Skeleton className="h-4 w-40" /><Skeleton className="h-24" /><Skeleton className="h-36" /></div>
+        : query.isError || !payload ? <Alert severidade="danger" titulo="Não foi possível carregar o payload." />
+          : <div className="space-y-6">
+            <section>
+              <h3 className="mb-3">Dados da comunicação</h3>
+              <dl className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+                <div><dt className="label-kit">Tipo de comunicação</dt><dd className="mt-1 text-[11px]">{texto(json?.tipoComunicacao)}</dd></div>
+                <div><dt className="label-kit">Classe</dt><dd className="mt-1 text-[11px]">{texto(json?.nomeClasse)}</dd></div>
+                <div><dt className="label-kit">Órgão</dt><dd className="mt-1 text-[11px]">{texto(json?.nomeOrgao)}</dd></div>
+                <div><dt className="label-kit">Meio</dt><dd className="mt-1 text-[11px]">{texto(json?.meio)}</dd></div>
+                <div><dt className="label-kit">Data de disponibilização</dt><dd className="mt-1 text-[11px]">{formatarData(dataDisponibilizacao === "—" ? null : dataDisponibilizacao)}</dd></div>
+                <div><dt className="label-kit">Nº do processo</dt><dd className="mt-1 text-[11px]">{texto(json?.numero_processo ?? json?.numeroprocessocommascara)}</dd></div>
+                <div><dt className="label-kit">Data de captura</dt><dd className="mt-1 text-[11px]">{formatarDataHora(payload.criado_em)}</dd></div>
+                <div className="sm:col-span-2"><dt className="label-kit">Link oficial</dt><dd className="mt-1 break-all text-[11px]">{link ? <a className="text-info underline" href={link} target="_blank" rel="noreferrer">{link}</a> : "—"}</dd></div>
+                <div className="sm:col-span-2"><dt className="label-kit">Destinatários</dt><dd className="mt-1 flex flex-wrap gap-1.5">
+                  {destinatarios.length ? destinatarios.map((item, indice) => <Badge key={`${texto(item.nome)}-${indice}`} variant="neutral">{texto(item.nome)}</Badge>) : <span className="text-[11px]">Não informado pela fonte</span>}
+                </dd></div>
+                <div className="sm:col-span-2"><dt className="label-kit">Advogados destinatários</dt><dd className="mt-1 flex flex-wrap gap-1.5">
+                  {advogados.length ? advogados.map((item, indice) => <Badge key={`${texto(item.nome)}-${indice}`} variant="navy">{nomeOab(item)}</Badge>) : <span className="text-[11px]">Não informado pela fonte</span>}
+                </dd></div>
+                <div className="sm:col-span-2"><dt className="label-kit">Hash de verificação</dt><dd className="mt-1 break-all font-mono text-[10px]">{payload.djen_hash}</dd></div>
+              </dl>
+            </section>
+            <section>
+              <h3 className="mb-3">Payload completo</h3>
+              <pre className="max-h-72 overflow-auto rounded-sm border border-border bg-secondary/50 p-4 font-mono text-[10px] leading-relaxed text-foreground">{jsonBruto}</pre>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <p className="text-[10px] text-muted-foreground">Resposta integral e inalterada da API do CNJ — conferência técnica.</p>
+                <Button variant="secondary" onClick={copiarJson}><Copy className="h-3.5 w-3.5" aria-hidden="true" />Copiar JSON bruto</Button>
+                <Button variant="primary" disabled={!hashCertidao} onClick={() => {
+                  if (hashCertidao) window.open(`https://comunicaapi.pje.jus.br/api/v1/comunicacao/${encodeURIComponent(hashCertidao)}/certidao`, "_blank", "noopener,noreferrer");
+                }}><ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />Abrir certidão</Button>
               </div>
-              <div>
-                <dt className="label-kit">Data de envio</dt>
-                <dd className="mt-1 text-[11px]">{formatarDataHora(payload.criado_em)}</dd>
-              </div>
-              <div>
-                <dt className="label-kit">Tipo de comunicação</dt>
-                <dd className="mt-1 text-[11px]">{texto(json?.tipoComunicacao)}</dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="label-kit">Destinatário / advogado nominal</dt>
-                <dd className="mt-1 flex flex-wrap gap-1.5">
-                  {advogados.length > 0 ? advogados.map((advogado, indice) => {
-                    const nome = texto(advogado.nome);
-                    const oab = texto(advogado.oab);
-                    return (
-                      <Badge key={`${nome}-${oab}-${indice}`} variant="navy">
-                        {nome} · {oab}
-                      </Badge>
-                    );
-                  }) : <span className="text-[11px]">Não informado pela fonte</span>}
-                </dd>
-              </div>
-              <div>
-                <dt className="label-kit">Data de disponibilização</dt>
-                <dd className="mt-1 text-[11px]">{formatarData(dataDisponibilizacao === "—" ? null : dataDisponibilizacao)}</dd>
-              </div>
-              <div>
-                <dt className="label-kit">Órgão / vara</dt>
-                <dd className="mt-1 text-[11px]">{texto(json?.nomeOrgao)}</dd>
-              </div>
-              <div>
-                <dt className="label-kit">Classe</dt>
-                <dd className="mt-1 text-[11px]">{texto(json?.nomeClasse)}</dd>
-              </div>
-              <div>
-                <dt className="label-kit">Nº do processo</dt>
-                <dd className="mt-1 text-[11px]">{texto(json?.numero_processo)}</dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="label-kit">Link oficial</dt>
-                <dd className="mt-1 text-[11px]">
-                  {link ? <a className="text-info underline break-all" href={link} target="_blank" rel="noreferrer">{link}</a> : "—"}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="label-kit">Hash de verificação completo</dt>
-                <dd className="mt-1 break-all font-mono text-[10px]">{payload.djen_hash}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section>
-            <h3 className="mb-3">Payload completo</h3>
-            <pre className="max-h-72 overflow-auto rounded-sm border border-border bg-secondary/50 p-4 font-mono text-[10px] leading-relaxed text-foreground">{jsonBruto}</pre>
-            <div className="mt-3 flex flex-col gap-3">
-              <p className="text-[10px] text-muted-foreground">Resposta integral e inalterada da API do CNJ — apenas conferência técnica.</p>
-              <Button variant="secondary" onClick={copiarJson}>
-                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                Copiar JSON bruto
-              </Button>
-            </div>
-          </section>
-        </div>
-      )}
+            </section>
+          </div>}
     </SlidePanel>
   );
 }

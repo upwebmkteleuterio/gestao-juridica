@@ -23,7 +23,7 @@ import {
   useProdutividadeEquipe,
 } from "@/hooks";
 import { formatarOab } from "@/lib/format";
-import { ErroEquipe } from "@/services/equipeService";
+import { ErroFuncao } from "@/services";
 import type { AdvogadoCarga } from "@/types";
 
 export default function Equipe() {
@@ -58,7 +58,7 @@ export default function Equipe() {
       toast.success("Profissional excluído da equipe.");
       setSelecionado(null);
     } catch (erro) {
-      if (erro instanceof ErroEquipe && erro.codigo === "prazos_em_aberto") {
+      if (erro instanceof ErroFuncao && erro.codigo === "prazos_em_aberto") {
         setMensagemExclusao(erro.message);
         setAlternativaBloqueio(selecionado);
         setSelecionado(null);

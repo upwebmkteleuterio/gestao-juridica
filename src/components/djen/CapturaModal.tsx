@@ -1,24 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Zap } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Alert,
-  Button,
-  DateRange,
-  FormField,
-  Input,
-  Modal,
-  Select,
-} from "@/components/kit";
-import {
-  useConfiguracoes,
-  useDispararConsultaDjen,
-  useRegistrarEvento,
-  useTribunaisDjen,
-} from "@/hooks";
-import { MAX_DIAS_CAPTURA } from "@/services";
+import { Alert, Button, DateRange, FormField, Input, Modal, Select } from "@/components/kit";
+import { useConfiguracoes, useDispararConsultaDjen, useRegistrarEvento, useTribunaisDjen, useUsuarioAtual } from "@/hooks";
 import { UFS } from "@/lib/ufs";
-import { useUsuarioAtual } from "@/hooks";
+import type { ResultadoCapturaDjen } from "@/types";
 
 export interface CapturaModalProps {
   open: boolean;
@@ -30,12 +16,13 @@ interface ErrosFormulario {
   oabUf?: string;
   dataDe?: string;
   dataAte?: string;
+  filtros?: string;
 }
 
-function diferencaEmDias(de: string, ate: string): number {
-  const inicio = Date.parse(`${de.slice(0, 10)}T12:00:00Z`);
-  const fim = Date.parse(`${ate.slice(0, 10)}T12:00:00Z`);
-  return Math.round((fim - inicio) / 86_400_000);
+const mensagemFiltro = "Informe tribunal, processo, parte, advogado, OAB ou texto, ou limite a página a 5 itens.";
+
+function dataValida(valor: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(valor) && !Number.isNaN(Date.parse(`${valor}T00:00:00Z`)) && new Date(`${valor}T00:00:00Z`).toISOString().slice(0, 10) === valor;
 }
 
 export function CapturaModal({ open, onClose }: CapturaModalProps) {
@@ -45,54 +32,51 @@ export function CapturaModal({ open, onClose }: CapturaModalProps) {
   const disparar = useDispararConsultaDjen();
   const registrarEvento = useRegistrarEvento();
   const preencheuOab = useRef(false);
-
   const [oabNumero, setOabNumero] = useState("");
   const [oabUf, setOabUf] = useState("");
   const [dataDe, setDataDe] = useState("");
   const [dataAte, setDataAte] = useState("");
   const [tribunal, setTribunal] = useState("");
+  const [numeroProcesso, setNumeroProcesso] = useState("");
+  const [nomeParte, setNomeParte] = useState("");
+  const [nomeAdvogado, setNomeAdvogado] = useState("");
+  const [texto, setTexto] = useState("");
+  const [meio, setMeio] = useState("");
+  const [itensPorPagina, setItensPorPagina] = useState<"5" | "100">("100");
   const [erros, setErros] = useState<ErrosFormulario>({});
   const [tentouEnviar, setTentouEnviar] = useState(false);
+  const [resultadoParcial, setResultadoParcial] = useState<ResultadoCapturaDjen | null>(null);
 
   useEffect(() => {
     if (!open) {
       preencheuOab.current = false;
+      setResultadoParcial(null);
       return;
     }
     if (!configuracoes.isSuccess || preencheuOab.current) return;
-
-    const primeiraOab = configuracoes.data.oabs_monitoradas[0] ?? "";
-    const [numero = "", uf = ""] = primeiraOab.split("/");
+    const [numero = "", uf = ""] = (configuracoes.data.oabs_monitoradas[0] ?? "").split("/");
     setOabNumero(numero.replace(/\D/g, ""));
     setOabUf(uf.toUpperCase());
     preencheuOab.current = true;
   }, [open, configuracoes.data, configuracoes.isSuccess]);
 
-  const diasSelecionados = useMemo(
-    () => (dataDe && dataAte ? diferencaEmDias(dataDe, dataAte) : null),
-    [dataDe, dataAte],
-  );
-  const periodoExcedeLimite =
-    diasSelecionados !== null && diasSelecionados > MAX_DIAS_CAPTURA;
-
-  function validar(
-    numero = oabNumero,
-    uf = oabUf,
-    de = dataDe,
-    ate = dataAte,
-  ): ErrosFormulario {
-    const novosErros: ErrosFormulario = {};
-    if (!numero) novosErros.oabNumero = "Informe o número da OAB.";
-    if (!uf) novosErros.oabUf = "Selecione a UF da OAB.";
-    if (!de) novosErros.dataDe = "Informe a data inicial.";
-    if (!ate) novosErros.dataAte = "Informe a data final.";
-    if (de && ate && de > ate) {
-      novosErros.dataDe = "A data inicial deve ser anterior à final.";
-      novosErros.dataAte = "A data final deve ser posterior à inicial.";
-    } else if (de && ate && diferencaEmDias(de, ate) > MAX_DIAS_CAPTURA) {
-      novosErros.dataDe = `Reduza o período para até ${MAX_DIAS_CAPTURA} dias.`;
+  function validar(): ErrosFormulario {
+    const novos: ErrosFormulario = {};
+    if (!oabNumero.trim()) novos.oabNumero = "Informe o número da OAB.";
+    if (!/^[A-Za-z]{2}$/.test(oabUf)) novos.oabUf = "Selecione uma UF válida.";
+    if (Boolean(dataDe) !== Boolean(dataAte)) {
+      if (!dataDe) novos.dataDe = "Informe a data inicial ou remova a data final.";
+      if (!dataAte) novos.dataAte = "Informe a data final ou remova a data inicial.";
     }
-    return novosErros;
+    if (dataDe && !dataValida(dataDe)) novos.dataDe = "Informe uma data inicial válida.";
+    if (dataAte && !dataValida(dataAte)) novos.dataAte = "Informe uma data final válida.";
+    if (dataDe && dataAte && dataValida(dataDe) && dataValida(dataAte) && dataDe > dataAte) {
+      novos.dataDe = "A data inicial deve ser anterior ou igual à final.";
+      novos.dataAte = "A data final deve ser posterior ou igual à inicial.";
+    }
+    const temFiltroForte = Boolean(oabNumero.trim() || tribunal.trim() || numeroProcesso.trim() || nomeParte.trim() || nomeAdvogado.trim() || texto.trim());
+    if (!temFiltroForte && itensPorPagina !== "5") novos.filtros = mensagemFiltro;
+    return novos;
   }
 
   async function executarCaptura(evento: FormEvent<HTMLFormElement>) {
@@ -100,15 +84,20 @@ export function CapturaModal({ open, onClose }: CapturaModalProps) {
     setTentouEnviar(true);
     const novosErros = validar();
     setErros(novosErros);
-    if (Object.keys(novosErros).length > 0) return;
-
+    if (Object.keys(novosErros).length) return;
     try {
       const resultado = await disparar.mutateAsync({
-        oab_numero: oabNumero,
-        oab_uf: oabUf,
-        disponibilizacaoDe: dataDe,
-        disponibilizacaoAte: dataAte,
-        ...(tribunal ? { tribunal } : {}),
+        oab_numero: oabNumero.trim(),
+        oab_uf: oabUf.toUpperCase(),
+        disponibilizacaoDe: dataDe || undefined,
+        disponibilizacaoAte: dataAte || undefined,
+        tribunal: tribunal || undefined,
+        numeroProcesso: numeroProcesso || undefined,
+        nomeParte: nomeParte || undefined,
+        nomeAdvogado: nomeAdvogado || undefined,
+        texto: texto || undefined,
+        meio: meio ? meio as "D" | "E" : undefined,
+        itensPorPagina: Number(itensPorPagina) as 5 | 100,
       });
       registrarEvento.mutate({
         ator_id: usuario?.id ?? null,
@@ -116,145 +105,88 @@ export function CapturaModal({ open, onClose }: CapturaModalProps) {
         entidade_id: `${oabNumero}/${oabUf}`,
         acao: "captura_executada",
         antes: null,
-        depois: `${resultado.recebidas} comunicações recebidas · ${resultado.duplicadas} duplicadas`,
+        depois: `${resultado.recebidas} recebidas · ${resultado.novas} novas · ${resultado.duplicadas} duplicadas`,
       });
-      toast.success(resultado.mensagem);
-      onClose();
+      toast.success(`${resultado.recebidas} recebidas · ${resultado.novas} novas · ${resultado.duplicadas} duplicadas`);
+      if (resultado.parcial) setResultadoParcial(resultado);
+      else onClose();
     } catch (erro) {
-      toast.error(
-        erro instanceof Error
-          ? erro.message
-          : "Não foi possível executar a captura.",
-      );
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível executar a captura.");
     }
   }
 
-  function atualizarDataDe(valor: string) {
-    setDataDe(valor);
-    if (tentouEnviar) setErros(validar(oabNumero, oabUf, valor, dataAte));
-  }
-
-  function atualizarDataAte(valor: string) {
-    setDataAte(valor);
-    if (tentouEnviar) setErros(validar(oabNumero, oabUf, dataDe, valor));
+  function atualizarCampo(atualizar: (valor: string) => void, valor: string) {
+    atualizar(valor);
+    if (tentouEnviar) setErros(validar());
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      largura="max-w-xl"
-      titulo="Disparo manual de consulta DJEN"
-      descricao="Aciona imediatamente a captura na API pública do CNJ, sem esperar o agendamento diário do robô."
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={disparar.isPending}>
-            Cancelar
-          </Button>
-          <Button
-            form="djen-captura-form"
-            type="submit"
-            variant="primary"
-            loading={disparar.isPending}
-          >
-            <Zap className="h-3.5 w-3.5" aria-hidden="true" />
-            Executar captura agora
-          </Button>
-        </>
-      }
-    >
+    <Modal open={open} onClose={onClose} largura="max-w-2xl" titulo="Disparo manual de consulta DJEN"
+      descricao="Consulta publicações reais na API pública do CNJ."
+      footer={<>
+        <Button variant="secondary" onClick={onClose} disabled={disparar.isPending}>Cancelar</Button>
+        <Button form="djen-captura-form" type="submit" variant="primary" loading={disparar.isPending}>
+          <Zap className="h-3.5 w-3.5" aria-hidden="true" /> Executar captura agora
+        </Button>
+      </>}>
       <form id="djen-captura-form" className="space-y-4" onSubmit={executarCaptura}>
+        {resultadoParcial ? <Alert severidade="warning" titulo="Resultado parcial">{resultadoParcial.mensagem || "A consulta foi interrompida antes de esgotar todos os resultados disponíveis."}</Alert> : null}
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            label="Número da OAB"
-            htmlFor="captura-oab-numero"
-            required
-            error={erros.oabNumero}
-          >
-            <Input
-              id="captura-oab-numero"
-              inputMode="numeric"
-              value={oabNumero}
-              aria-invalid={Boolean(erros.oabNumero) || undefined}
-              onChange={(evento) => {
-                const numero = evento.target.value.replace(/\D/g, "");
-                setOabNumero(numero);
-                if (tentouEnviar) setErros(validar(numero, oabUf));
-              }}
-            />
+          <FormField label="Número da OAB" htmlFor="captura-oab-numero" required error={erros.oabNumero}>
+            <Input id="captura-oab-numero" inputMode="numeric" value={oabNumero} aria-invalid={Boolean(erros.oabNumero) || undefined}
+              onChange={(evento) => atualizarCampo(setOabNumero, evento.target.value.replace(/\D/g, ""))} />
           </FormField>
-          <FormField
-            label="UF da OAB"
-            htmlFor="captura-oab-uf"
-            required
-            error={erros.oabUf}
-          >
-            <Select
-              id="captura-oab-uf"
-              value={oabUf}
-              aria-invalid={Boolean(erros.oabUf) || undefined}
-              onChange={(evento) => {
-                const uf = evento.target.value;
-                setOabUf(uf);
-                if (tentouEnviar) setErros(validar(oabNumero, uf));
-              }}
-            >
+          <FormField label="UF da OAB" htmlFor="captura-oab-uf" required error={erros.oabUf}>
+            <Select id="captura-oab-uf" value={oabUf} aria-invalid={Boolean(erros.oabUf) || undefined}
+              onChange={(evento) => atualizarCampo(setOabUf, evento.target.value)}>
               <option value="">Selecione a UF</option>
-              {UFS.map((uf) => (
-                <option key={uf.sigla} value={uf.sigla}>
-                  {uf.sigla} — {uf.nome}
-                </option>
-              ))}
+              {UFS.map((uf) => <option key={uf.sigla} value={uf.sigla}>{uf.sigla} — {uf.nome}</option>)}
             </Select>
           </FormField>
         </div>
-
         <div>
-          <DateRange
-            de={dataDe}
-            ate={dataAte}
-            onDeChange={atualizarDataDe}
-            onAteChange={atualizarDataAte}
-            idDe="captura-data-de"
-            idAte="captura-data-ate"
-            rotuloDe="Data de disponibilização inicial *"
-            rotuloAte="Data de disponibilização final *"
-            erro={erros.dataDe}
-          />
-          {erros.dataAte ? (
-            <p className="mt-1.5 text-[10px] font-medium text-danger">
-              {erros.dataAte}
-            </p>
-          ) : null}
-          {periodoExcedeLimite ? (
-            <Alert
-              className="mt-3"
-              severidade="warning"
-              titulo="Período acima do limite"
-            >
-              A API do CNJ limita pesquisas amplas a blocos de resultados. Reduza o período para até 5 dias para não exceder a paginação.
-            </Alert>
-          ) : null}
+          <DateRange de={dataDe} ate={dataAte} onDeChange={(valor) => atualizarCampo(setDataDe, valor)} onAteChange={(valor) => atualizarCampo(setDataAte, valor)}
+            idDe="captura-data-de" idAte="captura-data-ate" rotuloDe="Disponibilização a partir de" rotuloAte="Disponibilização até" />
+          {erros.dataDe ? <p className="mt-1 text-[10px] font-medium text-danger">{erros.dataDe}</p> : null}
+          {erros.dataAte ? <p className="mt-1 text-[10px] font-medium text-danger">{erros.dataAte}</p> : null}
         </div>
-
-        <FormField label="Tribunal específico (opcional)" htmlFor="captura-tribunal">
-          <Select
-            id="captura-tribunal"
-            value={tribunal}
-            onChange={(evento) => setTribunal(evento.target.value)}
-          >
-            <option value="">Todos os tribunais</option>
-            {(tribunais.data ?? []).map((sigla) => (
-              <option key={sigla} value={sigla}>
-                {sigla}
-              </option>
-            ))}
-          </Select>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label="Tribunal" htmlFor="captura-tribunal">
+            <Select id="captura-tribunal" value={tribunal} onChange={(evento) => atualizarCampo(setTribunal, evento.target.value)}>
+              <option value="">Todos os tribunais</option>
+              {(tribunais.data ?? []).map((sigla) => <option key={sigla} value={sigla}>{sigla}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Número do processo" htmlFor="captura-processo">
+            <Input id="captura-processo" value={numeroProcesso} onChange={(evento) => atualizarCampo(setNumeroProcesso, evento.target.value)} />
+          </FormField>
+          <FormField label="Nome da parte" htmlFor="captura-parte">
+            <Input id="captura-parte" value={nomeParte} onChange={(evento) => atualizarCampo(setNomeParte, evento.target.value)} />
+          </FormField>
+          <FormField label="Nome do advogado" htmlFor="captura-advogado">
+            <Input id="captura-advogado" value={nomeAdvogado} onChange={(evento) => atualizarCampo(setNomeAdvogado, evento.target.value)} />
+          </FormField>
+        </div>
+        <FormField label="Texto" htmlFor="captura-texto">
+          <Input id="captura-texto" value={texto} onChange={(evento) => atualizarCampo(setTexto, evento.target.value)} />
         </FormField>
-
-        <Alert severidade="info" titulo="Ambiente de demonstração">
-          A captura é simulada localmente e o UPSERT usa o <code>djen_id_original</code> como chave, descartando publicações já ingeridas.
-        </Alert>
+        {erros.filtros ? <p className="text-[10px] font-medium text-danger">{erros.filtros}</p> : null}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label="Meio" htmlFor="captura-meio">
+            <Select id="captura-meio" value={meio} onChange={(evento) => atualizarCampo(setMeio, evento.target.value)}>
+              <option value="">Todos</option><option value="D">Diário</option><option value="E">Editais</option>
+            </Select>
+          </FormField>
+          <FormField label="Itens por página" htmlFor="captura-itens-pagina" error={erros.filtros}>
+            <Select id="captura-itens-pagina" value={itensPorPagina} onChange={(evento) => {
+              setItensPorPagina(evento.target.value as "5" | "100");
+              if (tentouEnviar) setErros(validar());
+            }}>
+              <option value="100">100 itens</option><option value="5">5 itens</option>
+            </Select>
+          </FormField>
+        </div>
+        {erros.filtros ? <Alert severidade="warning" titulo="Filtro mínimo exigido">{mensagemFiltro}</Alert> : null}
       </form>
     </Modal>
   );

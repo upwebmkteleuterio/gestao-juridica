@@ -1,0 +1,1 @@
+grant select, insert, update on table public.segredos_sistema to service_role

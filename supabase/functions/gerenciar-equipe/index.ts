@@ -214,7 +214,7 @@ serve(async (request) => {
         if (erroLeitura || !antes) return erro(400, "advogado_nao_encontrado", "Advogado não encontrado.");
         const { data: authAlvo, error: erroAuthAlvo } = await admin.auth.admin.getUserById(id);
         if (erroAuthAlvo || !authAlvo.user) return erro(400, "advogado_nao_encontrado", "Usuário de autenticação não encontrado.");
-        const patchAuth: Record<string, unknown> = {};
+        const patchAuth: { email?: string; email_confirm?: boolean; app_metadata?: object } = {};
         if (authAlvo.user.email?.toLowerCase() !== email.toLowerCase()) {
           patchAuth.email = email;
           patchAuth.email_confirm = true;
@@ -240,6 +240,16 @@ serve(async (request) => {
         };
         const { error: erroAtualizacao } = await admin.from("advogados").update(depois).eq("id", id);
         if (erroAtualizacao) {
+          if (Object.keys(patchAuth).length) {
+            const restauracao: { email?: string; email_confirm?: boolean; app_metadata?: object } = {};
+            if (patchAuth.email) {
+              restauracao.email = authAlvo.user.email;
+              restauracao.email_confirm = true;
+            }
+            if (patchAuth.app_metadata) restauracao.app_metadata = authAlvo.user.app_metadata;
+            const { error: erroRestauracao } = await admin.auth.admin.updateUserById(id, restauracao);
+            if (erroRestauracao) console.error("[gerenciar-equipe] Falha ao restaurar os dados do Auth após erro no banco.");
+          }
           const conflito = conflitoBanco(erroAtualizacao);
           if (conflito) return conflito;
           console.error("[gerenciar-equipe] Falha ao atualizar o cadastro da equipe.");

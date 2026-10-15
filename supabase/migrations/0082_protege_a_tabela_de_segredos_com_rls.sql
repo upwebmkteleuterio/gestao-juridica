@@ -1,0 +1,1 @@
+alter table public.segredos_sistema enable row level security

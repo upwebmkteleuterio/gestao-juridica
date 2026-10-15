@@ -16,6 +16,7 @@ export const intimacoesDjenRawKeys = {
     ["intimacoes-djen-raw", "auditoria", consulta] as const,
   indicadores: ["intimacoes-djen-raw", "indicadores"] as const,
   tribunais: ["intimacoes-djen-raw", "tribunais"] as const,
+  capturas: (limite: number) => ["capturas-djen", limite] as const,
 };
 
 /** Data grid da Tela 3 — filtros e página vão na chave da consulta. */
@@ -43,6 +44,13 @@ export function useTribunaisDjen() {
   });
 }
 
+export function useCapturasDjen(limite = 10) {
+  return useQuery({
+    queryKey: intimacoesDjenRawKeys.capturas(limite),
+    queryFn: () => intimacoesDjenRawService.listarCapturas(limite),
+  });
+}
+
 /** Disparo manual de captura (Tela 3.1). */
 export function useDispararConsultaDjen() {
   const queryClient = useQueryClient();
@@ -52,6 +60,7 @@ export function useDispararConsultaDjen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: intimacoesDjenRawKeys.all });
       queryClient.invalidateQueries({ queryKey: intimacoesKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["capturas-djen"] });
       queryClient.invalidateQueries({ queryKey: ["eventos-auditoria"] });
     },
   });

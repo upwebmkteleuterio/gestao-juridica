@@ -1,0 +1,1 @@
+alter table public.capturas_djen add column rate_limit_limite integer, add column rate_limit_restante integer

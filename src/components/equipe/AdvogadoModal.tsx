@@ -19,7 +19,7 @@ import {
   useVerificarOabEmUso,
 } from "@/hooks";
 import { UFS } from "@/lib/ufs";
-import { ErroEquipe } from "@/services/equipeService";
+import { ErroFuncao } from "@/services";
 import type { AdvogadoInput } from "@/types";
 
 export interface AdvogadoModalProps {
@@ -163,7 +163,7 @@ export function AdvogadoModal({ open, advogadoId, onClose }: AdvogadoModalProps)
       }
       onClose();
     } catch (erro) {
-      if (erro instanceof ErroEquipe && erro.codigo === "oab_em_uso") {
+      if (erro instanceof ErroFuncao && erro.codigo === "oab_em_uso") {
         setErros((atuais) => ({ ...atuais, oab_numero: erro.message }));
         return;
       }

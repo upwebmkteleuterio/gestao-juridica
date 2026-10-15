@@ -1,0 +1,1 @@
+create table public.segredos_sistema (id integer primary key, robo_token text not null, atualizado_em timestamp with time zone not null default now(), constraint segredos_sistema_singleton check (id = 1))

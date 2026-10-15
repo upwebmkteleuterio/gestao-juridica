@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
   AnaliseBadge,
+  Badge,
   Button,
   DateRange,
   EmptyState,
@@ -26,9 +27,10 @@ import {
   TableToolbar,
   TableWrap,
 } from "@/components/kit";
-import { CapturaModal, PayloadPanel } from "@/components/djen";
+import { CapturaModal, PayloadPanel, RoboConfigPanel } from "@/components/djen";
 import {
   useAuditoriaDjen,
+  useCapturasDjen,
   useConfiguracoes,
   useIndicadoresIngestaoDjen,
 } from "@/hooks";
@@ -47,6 +49,7 @@ export default function DjenMonitor() {
 
   const configuracoes = useConfiguracoes();
   const indicadores = useIndicadoresIngestaoDjen();
+  const capturas = useCapturasDjen();
   const consulta = useMemo(
     () => ({
       ...(oab ? { oab } : {}),
@@ -162,6 +165,30 @@ export default function DjenMonitor() {
           Última captura: {indicadores.data?.ultimaCapturaEm ? formatarDataHora(indicadores.data.ultimaCapturaEm) : "sem capturas registradas"}
         </p>
       </Panel>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel>
+          <PanelHeader titulo="Execuções de captura" descricao="Histórico recente das consultas manuais e do robô." />
+          {capturas.isLoading ? <div className="space-y-3 p-5">{Array.from({ length: 3 }, (_, indice) => <Skeleton key={indice} className="h-16" />)}</div>
+            : capturas.isError ? <ErrorState titulo="Não foi possível carregar as execuções" descricao="Verifique a conexão e tente novamente." onRetry={() => capturas.refetch()} />
+              : !capturas.data?.length ? <EmptyState titulo="Nenhuma execução registrada" descricao="Dispare a primeira consulta para começar a acompanhar as capturas." />
+                : <div className="divide-y divide-border">
+                  {capturas.data.map((captura) => {
+                    const variante = captura.status === "falha" ? "danger" : captura.status === "parcial" ? "warning" : captura.status === "concluido" ? "success" : "neutral";
+                    return <div key={captura.id} className="space-y-2 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <strong className="text-xs">{captura.oab_numero && captura.oab_uf ? `${captura.oab_numero}/${captura.oab_uf}` : captura.tribunal_sigla ?? "Consulta geral"}</strong>
+                        <div className="flex flex-wrap gap-1.5"><Badge variant={variante}>{captura.status}</Badge>{captura.parcial ? <Badge variant="warning">parcial</Badge> : null}</div>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">Período: {captura.disponibilizacao_de ? formatarData(captura.disponibilizacao_de) : "—"} a {captura.disponibilizacao_ate ? formatarData(captura.disponibilizacao_ate) : "—"} · {captura.paginas_concluidas} páginas</p>
+                      <p className="text-[10px] text-muted-foreground">{captura.itens_recebidos} recebidas · {captura.itens_novos} novas · {captura.itens_duplicados} duplicadas</p>
+                      {captura.mensagem ? <p className="text-[10px] text-warning">{captura.mensagem}</p> : null}
+                    </div>;
+                  })}
+                </div>}
+        </Panel>
+        <RoboConfigPanel />
+      </div>
 
       <Panel>
         <TableToolbar

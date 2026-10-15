@@ -1,16 +1,6 @@
-import type {
-  DateOnly,
-  ID,
-  ISODate,
-  StatusAnaliseIA,
-  StatusCaptura,
-} from "./common";
+import type { DateOnly, ID, ISODate, StatusAnaliseIA, StatusCaptura } from "./common";
 import type { ResultadoPaginado } from "./consulta";
 
-/**
- * Linha da auditoria da API do CNJ (Tela 3): o payload bruto de
- * `intimacoes_djen_raw` já achatado nas 7 colunas do data grid.
- */
 export interface LinhaAuditoriaDjen {
   id: ID;
   /** `id` oficial devolvido pelo CNJ (chave de deduplicação). */
@@ -23,12 +13,8 @@ export interface LinhaAuditoriaDjen {
   status_analise_ia: StatusAnaliseIA;
 }
 
-/**
- * Parâmetros da consulta de auditoria. Toda filtragem e paginação é
- * resolvida no serviço, simulando a query real (range + count).
- */
 export interface ConsultaAuditoriaDjen {
-  /** OAB monitorada, no formato de `oabs_monitoradas` (ex.: "197254/RJ"). */
+  /** OAB monitorada no formato "197254/RJ". */
   oab?: string;
   disponibilizacaoDe?: string;
   disponibilizacaoAte?: string;
@@ -38,12 +24,9 @@ export interface ConsultaAuditoriaDjen {
 
 export type ResultadoAuditoriaDjen = ResultadoPaginado<LinhaAuditoriaDjen>;
 
-/** Indicadores do topo da Tela 3 (headers simulados da API do CNJ). */
 export interface IndicadoresIngestaoDjen {
-  /** % de requisições sem falha de análise (0–100). */
   taxaSucesso: number;
   totalMes: number;
-  /** Mês de referência ("2026-10") derivado da última captura. */
   mesReferencia: string;
   rateLimitLimite: number;
   rateLimitRestante: number;
@@ -51,22 +34,51 @@ export interface IndicadoresIngestaoDjen {
   status: StatusCaptura;
 }
 
-/** Parâmetros do disparo manual de captura (Tela 3.1). */
+export interface CapturaDjen {
+  id: ID;
+  oab_numero: string | null;
+  oab_uf: string | null;
+  tribunal_sigla: string | null;
+  disponibilizacao_de: DateOnly | null;
+  disponibilizacao_ate: DateOnly | null;
+  meio: string;
+  origem_disparo: "manual" | "cron";
+  status: StatusCaptura;
+  paginas_concluidas: number;
+  itens_recebidos: number;
+  itens_novos: number;
+  itens_duplicados: number;
+  parcial: boolean;
+  mensagem: string | null;
+  erro: string | null;
+  disparada_por: ID | null;
+  iniciada_em: ISODate;
+  concluida_em: ISODate | null;
+  rate_limit_limite: number | null;
+  rate_limit_restante: number | null;
+}
+
 export interface ParametrosCapturaDjen {
   oab_numero: string;
   oab_uf: string;
-  disponibilizacaoDe: string;
-  disponibilizacaoAte: string;
-  /** Sigla opcional para restringir a um tribunal específico. */
+  disponibilizacaoDe?: string;
+  disponibilizacaoAte?: string;
   tribunal?: string;
+  itensPorPagina?: 5 | 100;
+  meio?: "D" | "E";
+  numeroProcesso?: string;
+  nomeParte?: string;
+  nomeAdvogado?: string;
+  texto?: string;
 }
 
-/** Retorno do disparo manual — resumo do UPSERT executado pelo robô. */
 export interface ResultadoCapturaDjen {
   status: StatusCaptura;
   recebidas: number;
   novas: number;
   duplicadas: number;
+  parcial: boolean;
+  paginas: number;
   mensagem: string;
   executado_em: ISODate;
 }

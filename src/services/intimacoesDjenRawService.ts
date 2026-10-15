@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
+  CapturaDjen,
   ConsultaAuditoriaDjen,
   IndicadoresIngestaoDjen,
   IntimacaoDjenRaw,
@@ -9,12 +10,12 @@ import type {
   ResultadoCapturaDjen,
   StatusCaptura,
 } from "@/types";
-import { mensagemDeErro } from "./erros";
+import { invocarFuncao, mensagemDeErro } from "./erros";
 import { criarRepositorioSupabase } from "./repositorioSupabase";
 
 const COLUNAS = "id, djen_id_original:djen_id, djen_hash, payload_json, status_analise_ia, criado_em, data_disponibilizacao, sigla_tribunal, nome_orgao, numero_processo, oab_consultada";
+const COLUNAS_CAPTURA = "id, oab_numero, oab_uf, tribunal_sigla, disponibilizacao_de, disponibilizacao_ate, meio, origem_disparo, status, paginas_concluidas, itens_recebidos, itens_novos, itens_duplicados, parcial, mensagem, erro, disparada_por, iniciada_em, concluida_em, rate_limit_limite, rate_limit_restante";
 const TAMANHO_PAGINA_PADRAO = 8;
-export const MAX_DIAS_CAPTURA = 5;
 
 interface RawSelecionado extends IntimacaoDjenRaw {
   djen_id_original: string;
@@ -55,13 +56,6 @@ function paraLinha(linha: RawSelecionado): LinhaAuditoriaDjen {
     djen_hash: linha.djen_hash ?? "",
     status_analise_ia: linha.status_analise_ia,
   };
-}
-
-function diferencaEmDias(de: string, ate: string): number {
-  const inicio = new Date(`${de.slice(0, 10)}T12:00:00Z`);
-  const fim = new Date(`${ate.slice(0, 10)}T12:00:00Z`);
-  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) return 0;
-  return Math.round((fim.getTime() - inicio.getTime()) / 86_400_000);
 }
 
 function consultaBase(consulta: ConsultaAuditoriaDjen = {}) {
@@ -125,14 +119,23 @@ export const intimacoesDjenRawService = {
     return [...new Set((data ?? []).map((linha) => linha.sigla_tribunal).filter((sigla): sigla is string => Boolean(sigla)))].sort((a, b) => a.localeCompare(b));
   },
 
+  async listarCapturas(limite = 10): Promise<CapturaDjen[]> {
+    const { data, error } = await supabase.from("capturas_djen").select(COLUNAS_CAPTURA)
+      .order("iniciada_em", { ascending: false }).limit(limite);
+    if (error) throw new Error(mensagemDeErro(error));
+    return (data ?? []) as unknown as CapturaDjen[];
+  },
+
   async obterIndicadores(): Promise<IndicadoresIngestaoDjen> {
-    const [totais, falhas, maiorData, ultimaCaptura] = await Promise.all([
+    const [totais, falhas, maiorData, ultimaCaptura, execucaoMaisRecente, limiteMaisRecente] = await Promise.all([
       supabase.from("intimacoes_djen_raw").select("id", { count: "exact", head: true }),
       supabase.from("intimacoes_djen_raw").select("id", { count: "exact", head: true }).eq("status_analise_ia", "falha"),
       supabase.from("intimacoes_djen_raw").select("data_disponibilizacao").not("data_disponibilizacao", "is", null).order("data_disponibilizacao", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("intimacoes_djen_raw").select("criado_em").order("criado_em", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("capturas_djen").select("status, iniciada_em").order("iniciada_em", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("capturas_djen").select("rate_limit_limite, rate_limit_restante").or("rate_limit_limite.not.is.null,rate_limit_restante.not.is.null").order("iniciada_em", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    for (const resposta of [totais, falhas, maiorData, ultimaCaptura]) if (resposta.error) throw new Error(mensagemDeErro(resposta.error));
+    for (const resposta of [totais, falhas, maiorData, ultimaCaptura, execucaoMaisRecente, limiteMaisRecente]) if (resposta.error) throw new Error(mensagemDeErro(resposta.error));
     const total = totais.count ?? 0;
     const quantidadeFalhas = falhas.count ?? 0;
     const dataReferencia = maiorData.data?.data_disponibilizacao ?? "";
@@ -147,28 +150,27 @@ export const intimacoesDjenRawService = {
       if (resultadoMes.error) throw new Error(mensagemDeErro(resultadoMes.error));
       totalMes = resultadoMes.count ?? 0;
     }
-    const status: StatusCaptura = total === 0 ? "ocioso" : quantidadeFalhas === 0 ? "concluido" : quantidadeFalhas === total ? "falha" : "parcial";
-    // Esses valores só passam a ser medidos quando a captura real existir.
+    const statusLog: StatusCaptura = total === 0 ? "ocioso" : quantidadeFalhas === 0 ? "concluido" : quantidadeFalhas === total ? "falha" : "parcial";
     return {
       taxaSucesso: total === 0 ? 0 : Math.round(((total - quantidadeFalhas) / total) * 100),
       totalMes,
       mesReferencia,
-      rateLimitLimite: 0,
-      rateLimitRestante: 0,
-      ultimaCapturaEm: ultimaCaptura.data?.criado_em ?? null,
-      status,
+      rateLimitLimite: limiteMaisRecente.data?.rate_limit_limite ?? 0,
+      rateLimitRestante: limiteMaisRecente.data?.rate_limit_restante ?? 0,
+      ultimaCapturaEm: execucaoMaisRecente.data?.iniciada_em ?? ultimaCaptura.data?.criado_em ?? null,
+      status: (execucaoMaisRecente.data?.status as StatusCaptura | undefined) ?? statusLog,
     };
   },
 
   async dispararConsulta(params: ParametrosCapturaDjen): Promise<ResultadoCapturaDjen> {
-    if (!params.oab_numero.trim() || !params.oab_uf) throw new Error("Informe o número e a UF da OAB a pesquisar.");
-    if (!params.disponibilizacaoDe || !params.disponibilizacaoAte) throw new Error("Informe o período de disponibilização da captura.");
-    if (params.disponibilizacaoDe > params.disponibilizacaoAte) throw new Error("A data inicial deve ser anterior à data final.");
-    if (diferencaEmDias(params.disponibilizacaoDe, params.disponibilizacaoAte) > MAX_DIAS_CAPTURA) {
-      throw new Error(`A API do CNJ aceita faixas de até ${MAX_DIAS_CAPTURA} dias. Segmente a requisição para não exceder a paginação.`);
+    if (!params.oab_numero.trim() || !/^[A-Za-z]{2}$/.test(params.oab_uf.trim())) throw new Error("Informe o número e a UF válida da OAB.");
+    if ((params.disponibilizacaoDe && Number.isNaN(Date.parse(`${params.disponibilizacaoDe}T00:00:00Z`))) ||
+        (params.disponibilizacaoAte && Number.isNaN(Date.parse(`${params.disponibilizacaoAte}T00:00:00Z`)))) {
+      throw new Error("Informe datas válidas para o período de disponibilização.");
     }
-    const { data, error } = await supabase.functions.invoke("capturar-djen", { body: params });
-    if (error) throw new Error("Não foi possível concluir a captura agora. Tente novamente em instantes.");
-    return data as ResultadoCapturaDjen;
+    if (params.disponibilizacaoDe && params.disponibilizacaoAte && params.disponibilizacaoDe > params.disponibilizacaoAte) {
+      throw new Error("A data inicial deve ser anterior à data final.");
+    }
+    return invocarFuncao<ResultadoCapturaDjen>("capturar-djen", { ...params });
   },
 };

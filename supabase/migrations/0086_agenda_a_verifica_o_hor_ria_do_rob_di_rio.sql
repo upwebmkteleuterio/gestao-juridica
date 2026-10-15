@@ -1,0 +1,1 @@
+select cron.schedule('capturar-djen-horario', '5 * * * *', $job$ select net.http_post(url := 'https://emvrcosuacstypsjampb.supabase.co/functions/v1/capturar-djen', headers := jsonb_build_object('Content-Type', 'application/json', 'x-robo-token', (select robo_token from public.segredos_sistema where id = 1)), body := '{"origem":"cron"}'::jsonb); $job$)
