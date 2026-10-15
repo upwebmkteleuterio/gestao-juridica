@@ -1,81 +1,59 @@
-import { capturasDjenSimuladas, intimacoesDjenRawMock } from "@/mocks";
-import { normalizarOab } from "@/lib/format";
+import { supabase } from "@/integrations/supabase/client";
 import type {
   ConsultaAuditoriaDjen,
   IndicadoresIngestaoDjen,
   IntimacaoDjenRaw,
-  IntimacaoDjenRawInput,
   LinhaAuditoriaDjen,
   ParametrosCapturaDjen,
   ResultadoAuditoriaDjen,
   ResultadoCapturaDjen,
   StatusCaptura,
 } from "@/types";
-import {
-  CHAVES,
-  agora,
-  criarId,
-  criarRepositorio,
-  delay,
-  gravarColecao,
-  lerColecao,
-} from "./storage";
+import { mensagemDeErro } from "./erros";
+import { criarRepositorioSupabase } from "./repositorioSupabase";
 
-const repositorio = criarRepositorio<IntimacaoDjenRaw, IntimacaoDjenRawInput>({
-  chave: CHAVES.intimacoesDjenRaw,
-  seed: intimacoesDjenRawMock,
-  construir: (input) => ({ ...input, id: criarId("raw") }),
+const COLUNAS = "id, djen_id_original:djen_id, djen_hash, payload_json, status_analise_ia, criado_em, data_disponibilizacao, sigla_tribunal, nome_orgao, numero_processo, oab_consultada";
+const TAMANHO_PAGINA_PADRAO = 8;
+export const MAX_DIAS_CAPTURA = 5;
+
+interface RawSelecionado extends IntimacaoDjenRaw {
+  djen_id_original: string;
+  data_disponibilizacao: string | null;
+  sigla_tribunal: string | null;
+  nome_orgao: string | null;
+  numero_processo: string | null;
+  oab_consultada: string | null;
+}
+
+function normalizarRaw(linha: IntimacaoDjenRaw): IntimacaoDjenRaw {
+  const registro = linha as unknown as RawSelecionado;
+  return {
+    ...registro,
+    djen_id_original: String(registro.djen_id_original),
+    djen_hash: registro.djen_hash ?? "",
+    sigla_tribunal: registro.sigla_tribunal ?? "",
+    nome_orgao: registro.nome_orgao ?? "",
+    numero_processo: registro.numero_processo ?? "",
+    oab_consultada: registro.oab_consultada ?? "",
+  } as unknown as IntimacaoDjenRaw;
+}
+
+const repositorio = criarRepositorioSupabase<IntimacaoDjenRaw, never>({
+  tabela: "intimacoes_djen_raw",
+  colunas: COLUNAS,
+  montar: normalizarRaw,
 });
 
-const TAMANHO_PAGINA_PADRAO = 8;
-/** A API do CNJ limita pesquisas amplas a blocos de resultados (Tela 3.1). */
-export const MAX_DIAS_CAPTURA = 5;
-/** Header `x-ratelimit-limit` simulado da API pública do CNJ. */
-const RATE_LIMIT_DIARIO = 1000;
-/** Itens devolvidos por página de resposta da API do CNJ. */
-const ITENS_POR_RESPOSTA = 20;
-
-function lerRaw(): IntimacaoDjenRaw[] {
-  return lerColecao<IntimacaoDjenRaw>(
-    CHAVES.intimacoesDjenRaw,
-    intimacoesDjenRawMock,
-  );
-}
-
-function textoPayload(
-  payload: Record<string, unknown> | undefined,
-  chave: string,
-): string {
-  const valor = payload?.[chave];
-  return typeof valor === "string" ? valor : "";
-}
-
-function dataDisponibilizacao(raw: IntimacaoDjenRaw): string {
-  return textoPayload(raw.payload_json, "data_disponibilizacao");
-}
-
-/** OABs citadas no payload bruto, normalizadas para "numero/UF". */
-function oabsCitadas(raw: IntimacaoDjenRaw): string[] {
-  const lista = raw.payload_json?.advogados;
-  if (!Array.isArray(lista)) return [];
-  return lista
-    .map((item) =>
-      normalizarOab(String((item as { oab?: string } | null)?.oab ?? "")),
-    )
-    .filter(Boolean);
-}
-
-/** Achata o payload bruto nas 7 colunas do data grid da Tela 3. */
-function paraLinha(raw: IntimacaoDjenRaw): LinhaAuditoriaDjen {
+function paraLinha(linha: RawSelecionado): LinhaAuditoriaDjen {
   return {
-    id: raw.id,
-    djen_id_original: raw.djen_id_original,
-    tribunal_sigla: textoPayload(raw.payload_json, "siglaTribunal"),
-    orgao_julgador: textoPayload(raw.payload_json, "nomeOrgao"),
-    numero_processo: textoPayload(raw.payload_json, "numero_processo"),
-    data_disponibilizacao: dataDisponibilizacao(raw),
-    djen_hash: raw.djen_hash,
-    status_analise_ia: raw.status_analise_ia,
+    id: linha.id,
+    djen_id_original: String(linha.djen_id_original),
+    tribunal_sigla: linha.sigla_tribunal ?? "",
+    orgao_julgador: linha.nome_orgao ?? "",
+    numero_processo: linha.numero_processo ?? "",
+    data_disponibilizacao: linha.data_disponibilizacao ?? "",
+    djen_hash: linha.djen_hash ?? "",
+    status_analise_ia: linha.status_analise_ia,
   };
 }
 
@@ -86,223 +64,111 @@ function diferencaEmDias(de: string, ate: string): number {
   return Math.round((fim.getTime() - inicio.getTime()) / 86_400_000);
 }
 
-/** Repositório do log bruto de ingestão da API do DJEN. */
-export const intimacoesDjenRawService = {
-  ...repositorio,
+function consultaBase(consulta: ConsultaAuditoriaDjen = {}) {
+  let query = supabase.from("intimacoes_djen_raw").select(COLUNAS, { count: "exact" });
+  if (consulta.oab) query = query.eq("oab_consultada", consulta.oab);
+  if (consulta.disponibilizacaoDe) query = query.gte("data_disponibilizacao", consulta.disponibilizacaoDe);
+  if (consulta.disponibilizacaoAte) query = query.lte("data_disponibilizacao", consulta.disponibilizacaoAte);
+  return query;
+}
 
-  async buscarPorIdOriginal(
-    djen_id_original: string,
-  ): Promise<IntimacaoDjenRaw | null> {
-    const todos = await repositorio.getAll();
-    return (
-      todos.find((item) => item.djen_id_original === djen_id_original) ?? null
-    );
+function ordenar(query: ReturnType<typeof consultaBase>) {
+  return query.order("data_disponibilizacao", { ascending: false }).order("djen_id", { ascending: false });
+}
+
+export const intimacoesDjenRawService = {
+  getAll: repositorio.getAll,
+  getById: repositorio.getById,
+
+  async buscarPorIdOriginal(djen_id_original: string): Promise<IntimacaoDjenRaw | null> {
+    const valor = djen_id_original.trim();
+    if (!/^\d+$/.test(valor)) return null;
+    const idNumerico = Number(valor);
+    if (!Number.isFinite(idNumerico)) return null;
+    const { data, error } = await supabase.from("intimacoes_djen_raw").select(COLUNAS).eq("djen_id", idNumerico).maybeSingle();
+    if (error) throw new Error(mensagemDeErro(error));
+    return data ? normalizarRaw(data as unknown as IntimacaoDjenRaw) : null;
   },
 
   async contarPorStatus(): Promise<Record<string, number>> {
-    const todos = await repositorio.getAll();
-    return todos.reduce<Record<string, number>>((acc, item) => {
-      acc[item.status_analise_ia] = (acc[item.status_analise_ia] ?? 0) + 1;
-      return acc;
+    const status = ["pendente", "sucesso", "falha"] as const;
+    const resultados = await Promise.all(status.map((valor) =>
+      supabase.from("intimacoes_djen_raw").select("id", { count: "exact", head: true }).eq("status_analise_ia", valor),
+    ));
+    return resultados.reduce<Record<string, number>>((contagem, resultado, indice) => {
+      if (resultado.error) throw new Error(mensagemDeErro(resultado.error));
+      contagem[status[indice]] = resultado.count ?? 0;
+      return contagem;
     }, {});
   },
 
-  /**
-   * Data grid de auditoria da Tela 3. O filtro por OAB monitorada e pelo
-   * período da comunicação, a ordenação e a paginação acontecem aqui —
-   * exatamente como a query SQL/Supabase receberá esses parâmetros.
-   */
-  async listar(
-    consulta: ConsultaAuditoriaDjen = {},
-  ): Promise<ResultadoAuditoriaDjen> {
-    const linhas = lerRaw()
-      .filter((raw) => {
-        if (consulta.oab && !oabsCitadas(raw).includes(consulta.oab)) {
-          return false;
-        }
-        const data = dataDisponibilizacao(raw);
-        if (
-          consulta.disponibilizacaoDe &&
-          data < consulta.disponibilizacaoDe
-        ) {
-          return false;
-        }
-        if (
-          consulta.disponibilizacaoAte &&
-          data > consulta.disponibilizacaoAte
-        ) {
-          return false;
-        }
-        return true;
-      })
-      .map(paraLinha)
-      .sort((a, b) => {
-        if (a.data_disponibilizacao !== b.data_disponibilizacao) {
-          return b.data_disponibilizacao.localeCompare(a.data_disponibilizacao);
-        }
-        return b.djen_id_original.localeCompare(a.djen_id_original);
-      });
-
-    const tamanhoPagina = Math.max(
-      1,
-      consulta.tamanhoPagina ?? TAMANHO_PAGINA_PADRAO,
-    );
-    const totalPaginas = Math.max(
-      1,
-      Math.ceil(linhas.length / tamanhoPagina),
-    );
-    const pagina = Math.min(Math.max(1, consulta.pagina ?? 1), totalPaginas);
-    const inicio = (pagina - 1) * tamanhoPagina;
-
-    return delay({
-      dados: linhas.slice(inicio, inicio + tamanhoPagina),
-      total: linhas.length,
-      pagina,
-      tamanhoPagina,
-      totalPaginas,
-    });
+  async listar(consulta: ConsultaAuditoriaDjen = {}): Promise<ResultadoAuditoriaDjen> {
+    const tamanhoPagina = Math.max(1, consulta.tamanhoPagina ?? TAMANHO_PAGINA_PADRAO);
+    const paginaSolicitada = Math.max(1, consulta.pagina ?? 1);
+    const resposta = await ordenar(consultaBase(consulta)).range((paginaSolicitada - 1) * tamanhoPagina, paginaSolicitada * tamanhoPagina - 1);
+    if (resposta.error) throw new Error(mensagemDeErro(resposta.error));
+    const total = resposta.count ?? 0;
+    const totalPaginas = Math.max(1, Math.ceil(total / tamanhoPagina));
+    const pagina = Math.min(paginaSolicitada, totalPaginas);
+    let linhas = resposta.data ?? [];
+    if (pagina !== paginaSolicitada) {
+      const ajustada = await ordenar(consultaBase(consulta)).range((pagina - 1) * tamanhoPagina, pagina * tamanhoPagina - 1);
+      if (ajustada.error) throw new Error(mensagemDeErro(ajustada.error));
+      linhas = ajustada.data ?? [];
+    }
+    return { dados: (linhas as unknown as RawSelecionado[]).map(paraLinha), total, pagina, tamanhoPagina, totalPaginas };
   },
 
-  /** Tribunais presentes no log — seletor opcional da Tela 3.1. */
   async listarTribunais(): Promise<string[]> {
-    const siglas = new Set(
-      lerRaw()
-        .map((raw) => textoPayload(raw.payload_json, "siglaTribunal"))
-        .filter(Boolean),
-    );
-    return delay([...siglas].sort((a, b) => a.localeCompare(b)));
+    const { data, error } = await supabase.from("intimacoes_djen_raw").select("sigla_tribunal").not("sigla_tribunal", "is", null);
+    if (error) throw new Error(mensagemDeErro(error));
+    return [...new Set((data ?? []).map((linha) => linha.sigla_tribunal).filter((sigla): sigla is string => Boolean(sigla)))].sort((a, b) => a.localeCompare(b));
   },
 
-  /** Indicadores do topo da Tela 3 (headers simulados da API do CNJ). */
   async obterIndicadores(): Promise<IndicadoresIngestaoDjen> {
-    const todos = lerRaw();
-    const falhas = todos.filter(
-      (item) => item.status_analise_ia === "falha",
-    ).length;
-    const taxaSucesso =
-      todos.length === 0
-        ? 0
-        : Math.round(((todos.length - falhas) / todos.length) * 100);
-
-    const datas = todos
-      .map(dataDisponibilizacao)
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
-    const dataReferencia = datas[datas.length - 1] ?? "";
+    const [totais, falhas, maiorData, ultimaCaptura] = await Promise.all([
+      supabase.from("intimacoes_djen_raw").select("id", { count: "exact", head: true }),
+      supabase.from("intimacoes_djen_raw").select("id", { count: "exact", head: true }).eq("status_analise_ia", "falha"),
+      supabase.from("intimacoes_djen_raw").select("data_disponibilizacao").not("data_disponibilizacao", "is", null).order("data_disponibilizacao", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("intimacoes_djen_raw").select("criado_em").order("criado_em", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    for (const resposta of [totais, falhas, maiorData, ultimaCaptura]) if (resposta.error) throw new Error(mensagemDeErro(resposta.error));
+    const total = totais.count ?? 0;
+    const quantidadeFalhas = falhas.count ?? 0;
+    const dataReferencia = maiorData.data?.data_disponibilizacao ?? "";
     const mesReferencia = dataReferencia.slice(0, 7);
-    const totalMes = todos.filter((item) =>
-      dataDisponibilizacao(item).startsWith(mesReferencia),
-    ).length;
-
-    /* Headers simulados: cada resposta da API entrega ITENS_POR_RESPOSTA. */
-    const respostasNaReferencia = Math.ceil(
-      todos.filter((item) => dataDisponibilizacao(item) === dataReferencia)
-        .length / ITENS_POR_RESPOSTA,
-    );
-
-    const ultimaCapturaEm =
-      todos
-        .map((item) => item.criado_em)
-        .sort((a, b) => a.localeCompare(b))
-        .pop() ?? null;
-
-    const status: StatusCaptura =
-      todos.length === 0
-        ? "ocioso"
-        : falhas === 0
-          ? "concluido"
-          : falhas === todos.length
-            ? "falha"
-            : "parcial";
-
-    return delay({
-      taxaSucesso,
+    let totalMes = 0;
+    if (mesReferencia) {
+      const inicioMes = `${mesReferencia}-01`;
+      const data = new Date(`${inicioMes}T00:00:00Z`);
+      data.setUTCMonth(data.getUTCMonth() + 1);
+      const fimMes = data.toISOString().slice(0, 10);
+      const resultadoMes = await supabase.from("intimacoes_djen_raw").select("id", { count: "exact", head: true }).gte("data_disponibilizacao", inicioMes).lt("data_disponibilizacao", fimMes);
+      if (resultadoMes.error) throw new Error(mensagemDeErro(resultadoMes.error));
+      totalMes = resultadoMes.count ?? 0;
+    }
+    const status: StatusCaptura = total === 0 ? "ocioso" : quantidadeFalhas === 0 ? "concluido" : quantidadeFalhas === total ? "falha" : "parcial";
+    // Esses valores só passam a ser medidos quando a captura real existir.
+    return {
+      taxaSucesso: total === 0 ? 0 : Math.round(((total - quantidadeFalhas) / total) * 100),
       totalMes,
       mesReferencia,
-      rateLimitLimite: RATE_LIMIT_DIARIO,
-      rateLimitRestante: Math.max(
-        0,
-        RATE_LIMIT_DIARIO - respostasNaReferencia,
-      ),
-      ultimaCapturaEm,
+      rateLimitLimite: 0,
+      rateLimitRestante: 0,
+      ultimaCapturaEm: ultimaCaptura.data?.criado_em ?? null,
       status,
-    });
+    };
   },
 
-  /**
-   * Disparo manual da Tela 3.1: simula a chamada `GET /api/v1/comunicacao`
-   * seguida do UPSERT por `djen_id_original`. O que já existe no log entra
-   * como duplicado — nenhuma publicação é ingerida duas vezes.
-   */
-  async dispararConsulta(
-    params: ParametrosCapturaDjen,
-  ): Promise<ResultadoCapturaDjen> {
-    if (!params.oab_numero.trim() || !params.oab_uf) {
-      throw new Error("Informe o número e a UF da OAB a pesquisar.");
+  async dispararConsulta(params: ParametrosCapturaDjen): Promise<ResultadoCapturaDjen> {
+    if (!params.oab_numero.trim() || !params.oab_uf) throw new Error("Informe o número e a UF da OAB a pesquisar.");
+    if (!params.disponibilizacaoDe || !params.disponibilizacaoAte) throw new Error("Informe o período de disponibilização da captura.");
+    if (params.disponibilizacaoDe > params.disponibilizacaoAte) throw new Error("A data inicial deve ser anterior à data final.");
+    if (diferencaEmDias(params.disponibilizacaoDe, params.disponibilizacaoAte) > MAX_DIAS_CAPTURA) {
+      throw new Error(`A API do CNJ aceita faixas de até ${MAX_DIAS_CAPTURA} dias. Segmente a requisição para não exceder a paginação.`);
     }
-    if (!params.disponibilizacaoDe || !params.disponibilizacaoAte) {
-      throw new Error("Informe o período de disponibilização da captura.");
-    }
-    if (params.disponibilizacaoDe > params.disponibilizacaoAte) {
-      throw new Error("A data inicial deve ser anterior à data final.");
-    }
-    if (
-      diferencaEmDias(params.disponibilizacaoDe, params.disponibilizacaoAte) >
-      MAX_DIAS_CAPTURA
-    ) {
-      throw new Error(
-        `A API do CNJ aceita faixas de até ${MAX_DIAS_CAPTURA} dias. Segmente a requisição para não exceder a paginação.`,
-      );
-    }
-
-    const oab = normalizarOab(`${params.oab_numero}/${params.oab_uf}`);
-    const fonteOficial = [...intimacoesDjenRawMock, ...capturasDjenSimuladas];
-    const recebidas = fonteOficial.filter((item) => {
-      const data = dataDisponibilizacao(item);
-      if (
-        data < params.disponibilizacaoDe ||
-        data > params.disponibilizacaoAte
-      ) {
-        return false;
-      }
-      if (
-        params.tribunal &&
-        textoPayload(item.payload_json, "siglaTribunal") !== params.tribunal
-      ) {
-        return false;
-      }
-      return oabsCitadas(item).includes(oab);
-    });
-
-    const existentes = new Set(lerRaw().map((item) => item.djen_id_original));
-    const novas = recebidas.filter(
-      (item) => !existentes.has(item.djen_id_original),
-    );
-    const carimbo = agora();
-
-    if (novas.length > 0) {
-      gravarColecao(CHAVES.intimacoesDjenRaw, [
-        ...lerRaw(),
-        ...novas.map((item) => ({ ...item, criado_em: carimbo })),
-      ]);
-    }
-
-    const status: StatusCaptura =
-      novas.length > 0 ? "concluido" : "sem_novidades";
-    const mensagem =
-      novas.length > 0
-        ? `${novas.length} nova(s) publicação(ões) ingerida(s) na fila de análise da IA.`
-        : recebidas.length > 0
-          ? "Nenhuma publicação inédita: todas já constavam no log de ingestão."
-          : "A fonte oficial não devolveu publicações para os parâmetros informados.";
-
-    return delay({
-      status,
-      recebidas: recebidas.length,
-      novas: novas.length,
-      duplicadas: recebidas.length - novas.length,
-      mensagem,
-      executado_em: carimbo,
-    });
+    const { data, error } = await supabase.functions.invoke("capturar-djen", { body: params });
+    if (error) throw new Error("Não foi possível concluir a captura agora. Tente novamente em instantes.");
+    return data as ResultadoCapturaDjen;
   },
 };

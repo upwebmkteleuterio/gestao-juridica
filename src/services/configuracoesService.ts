@@ -1,56 +1,46 @@
-import { configuracoesSistemaMock } from "@/mocks";
+import { supabase } from "@/integrations/supabase/client";
 import type { ConfiguracaoSistema, ConfiguracaoSistemaInput } from "@/types";
-import {
-  CHAVES,
-  agora,
-  delay,
-  gravarSingleton,
-  lerSingleton,
-} from "./storage";
+import { mensagemDeErro } from "./erros";
 
-function lerAtual(): ConfiguracaoSistema {
-  return lerSingleton<ConfiguracaoSistema>(
-    CHAVES.configuracoes,
-    configuracoesSistemaMock,
-  );
+const COLUNAS = "id, oabs_monitoradas, horario_cron_djen, ia_modelo, ia_system_prompt, updated_at";
+
+function normalizar(linha: ConfiguracaoSistema): ConfiguracaoSistema {
+  return {
+    ...linha,
+    oabs_monitoradas: linha.oabs_monitoradas ?? [],
+    horario_cron_djen: linha.horario_cron_djen ?? "",
+    ia_modelo: linha.ia_modelo ?? "",
+    ia_system_prompt: linha.ia_system_prompt ?? "",
+    updated_at: linha.updated_at ?? "",
+  };
 }
 
-/** Repositório da tabela singleton `configuracoes_sistema` (id = 1). */
+async function obterLinha(): Promise<ConfiguracaoSistema | null> {
+  const { data, error } = await supabase.from("configuracoes_sistema").select(COLUNAS).eq("id", 1).maybeSingle();
+  if (error) throw new Error(mensagemDeErro(error));
+  return data ? normalizar(data as unknown as ConfiguracaoSistema) : null;
+}
+
 export const configuracoesService = {
   async getAll(): Promise<ConfiguracaoSistema[]> {
-    return delay([lerAtual()]);
+    return [await configuracoesService.get()];
   },
 
   async get(): Promise<ConfiguracaoSistema> {
-    return delay(lerAtual());
+    const existente = await obterLinha();
+    if (existente) return existente;
+    const { data, error } = await supabase.from("configuracoes_sistema").upsert({ id: 1 }).select(COLUNAS).single();
+    if (error) throw new Error(mensagemDeErro(error));
+    return normalizar(data as unknown as ConfiguracaoSistema);
   },
 
   async getById(id: string): Promise<ConfiguracaoSistema | null> {
-    return delay(id === "1" ? lerAtual() : null);
+    return id === "1" ? obterLinha() : null;
   },
 
-  async update(
-    _id: string,
-    input: Partial<ConfiguracaoSistemaInput>,
-  ): Promise<ConfiguracaoSistema> {
-    const proximo: ConfiguracaoSistema = {
-      ...lerAtual(),
-      ...input,
-      id: 1,
-      updated_at: agora(),
-    };
-    gravarSingleton(CHAVES.configuracoes, proximo);
-    return delay(proximo);
-  },
-
-  async remove(): Promise<void> {
-    gravarSingleton(CHAVES.configuracoes, configuracoesSistemaMock);
-    return delay(undefined);
-  },
-
-  /** Restaura os parâmetros de demonstração. */
-  async restaurar(): Promise<ConfiguracaoSistema> {
-    gravarSingleton(CHAVES.configuracoes, configuracoesSistemaMock);
-    return delay(configuracoesSistemaMock);
+  async update(_id: string, input: Partial<ConfiguracaoSistemaInput>): Promise<ConfiguracaoSistema> {
+    const { data, error } = await supabase.from("configuracoes_sistema").update(input).eq("id", 1).select(COLUNAS).single();
+    if (error) throw new Error(mensagemDeErro(error));
+    return normalizar(data as unknown as ConfiguracaoSistema);
   },
 };

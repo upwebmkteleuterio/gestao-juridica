@@ -1,32 +1,28 @@
-import { eventosAuditoriaMock } from "@/mocks";
+import { supabase } from "@/integrations/supabase/client";
 import type { EventoAuditoria, EventoAuditoriaInput } from "@/types";
-import { CHAVES, agora, criarId, criarRepositorio } from "./storage";
+import { mensagemDeErro } from "./erros";
+import { criarRepositorioSupabase } from "./repositorioSupabase";
 
-const repositorio = criarRepositorio<EventoAuditoria, EventoAuditoriaInput>({
-  chave: CHAVES.eventosAuditoria,
-  seed: eventosAuditoriaMock,
-  construir: (input) => ({
-    ...input,
-    id: criarId("aud"),
-    criado_em: agora(),
-  }),
+const COLUNAS = "id, ator_id, entidade, entidade_id, acao, antes, depois, criado_em";
+const repositorio = criarRepositorioSupabase<EventoAuditoria, EventoAuditoriaInput>({
+  tabela: "eventos_auditoria",
+  colunas: COLUNAS,
 });
 
-/** Repositório da trilha de auditoria. */
 export const eventosAuditoriaService = {
-  ...repositorio,
+  getAll: repositorio.getAll,
+  getById: repositorio.getById,
+  create: repositorio.create,
 
   async listarRecentes(limite = 10): Promise<EventoAuditoria[]> {
-    const todos = await repositorio.getAll();
-    return [...todos]
-      .sort((a, b) => b.criado_em.localeCompare(a.criado_em))
-      .slice(0, limite);
+    const { data, error } = await supabase.from("eventos_auditoria").select(COLUNAS).order("criado_em", { ascending: false }).limit(limite);
+    if (error) throw new Error(mensagemDeErro(error));
+    return (data ?? []) as unknown as EventoAuditoria[];
   },
 
   async listarPorEntidade(entidade_id: string): Promise<EventoAuditoria[]> {
-    const todos = await repositorio.getAll();
-    return todos
-      .filter((evento) => evento.entidade_id === entidade_id)
-      .sort((a, b) => b.criado_em.localeCompare(a.criado_em));
+    const { data, error } = await supabase.from("eventos_auditoria").select(COLUNAS).eq("entidade_id", entidade_id).order("criado_em", { ascending: false });
+    if (error) throw new Error(mensagemDeErro(error));
+    return (data ?? []) as unknown as EventoAuditoria[];
   },
 };

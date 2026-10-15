@@ -1,60 +1,66 @@
-import { advogadosMock } from "@/mocks";
+import { supabase } from "@/integrations/supabase/client";
 import type { Advogado, AdvogadoInput } from "@/types";
-import { CHAVES, agora, criarId, criarRepositorio } from "./storage";
+import { mensagemDeErro } from "./erros";
+import { criarRepositorioSupabase } from "./repositorioSupabase";
 
-const repositorio = criarRepositorio<Advogado, AdvogadoInput>({
-  chave: CHAVES.advogados,
-  seed: advogadosMock,
-  construir: (input) => ({
-    ...input,
-    id: criarId("adv"),
-    created_at: agora(),
+const COLUNAS = "id, nome_completo, email_corporativo, oab_numero, oab_uf, perfil, ativo_distribuicao, cargo, data_ingresso, created_at";
+const repositorio = criarRepositorioSupabase<Advogado, AdvogadoInput>({
+  tabela: "advogados",
+  colunas: COLUNAS,
+  montar: (linha) => ({
+    ...linha,
+    oab_numero: linha.oab_numero ?? "",
+    oab_uf: linha.oab_uf ?? "",
   }),
 });
 
-/** Repositório da tabela `advogados`. */
 export const advogadosService = {
   ...repositorio,
 
-  /** Advogados habilitados a receber carga na distribuição automática. */
   async listarElegiveis(): Promise<Advogado[]> {
-    const todos = await repositorio.getAll();
-    return todos.filter((advogado) => advogado.ativo_distribuicao);
+    const { data, error } = await supabase
+      .from("advogados")
+      .select(COLUNAS)
+      .eq("ativo_distribuicao", true);
+    if (error) throw new Error(mensagemDeErro(error));
+    return ((data ?? []) as unknown as Advogado[]).map((linha) => ({
+      ...linha,
+      oab_numero: linha.oab_numero ?? "",
+      oab_uf: linha.oab_uf ?? "",
+    }));
   },
 
-  async alternarDisponibilidade(
-    id: string,
-    ativo_distribuicao: boolean,
-  ): Promise<Advogado> {
+  async alternarDisponibilidade(id: string, ativo_distribuicao: boolean): Promise<Advogado> {
     return repositorio.update(id, { ativo_distribuicao });
   },
 
   async buscarPorEmail(email: string): Promise<Advogado | null> {
-    const todos = await repositorio.getAll();
-    return (
-      todos.find(
-        (advogado) =>
-          advogado.email_corporativo.toLowerCase() === email.toLowerCase(),
-      ) ?? null
+    const { data, error } = await supabase
+      .from("advogados")
+      .select(COLUNAS)
+      .ilike("email_corporativo", email)
+      .maybeSingle();
+    if (error) throw new Error(mensagemDeErro(error));
+    const advogado = data as unknown as Advogado | null;
+    if (!advogado || advogado.email_corporativo.toLowerCase() !== email.toLowerCase()) return null;
+    return { ...advogado, oab_numero: advogado.oab_numero ?? "", oab_uf: advogado.oab_uf ?? "" };
+  },
+
+  async oabEmUso(oab_numero: string, oab_uf: string, ignorarId?: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from("advogados")
+      .select("id, oab_numero, oab_uf");
+    if (error) throw new Error(mensagemDeErro(error));
+    const numero = oab_numero.replace(/\D/g, "");
+    return ((data ?? []) as unknown as Pick<Advogado, "id" | "oab_numero" | "oab_uf">[]).some(
+      (advogado) => advogado.id !== ignorarId &&
+        (advogado.oab_uf ?? "").toUpperCase() === oab_uf.toUpperCase() &&
+        (advogado.oab_numero ?? "").replace(/\D/g, "") === numero,
     );
   },
 
-  /**
-   * Checagem de duplicidade da inscrição (Tela 4.1). `ignorarId` permite
-   * editar o próprio registro sem acusar conflito com ele mesmo.
-   */
-  async oabEmUso(
-    oab_numero: string,
-    oab_uf: string,
-    ignorarId?: string,
-  ): Promise<boolean> {
-    const todos = await repositorio.getAll();
-    const numero = oab_numero.replace(/\D/g, "");
-    return todos.some(
-      (advogado) =>
-        advogado.id !== ignorarId &&
-        advogado.oab_uf.toUpperCase() === oab_uf.toUpperCase() &&
-        advogado.oab_numero.replace(/\D/g, "") === numero,
-    );
+  async remove(id: string): Promise<void> {
+    const { error } = await supabase.from("advogados").delete().eq("id", id);
+    if (error) throw new Error(mensagemDeErro(error));
   },
 };

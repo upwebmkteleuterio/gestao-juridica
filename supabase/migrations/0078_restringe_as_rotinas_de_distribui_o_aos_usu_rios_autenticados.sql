@@ -1,0 +1,1 @@
+revoke execute on function public.calcular_previa_distribuicao(uuid[], uuid[], text), public.distribuir_lote(uuid[], uuid[], text), public.enviar_para_esteira(uuid, text, text, date, uuid) from public, anon

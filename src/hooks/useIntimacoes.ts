@@ -101,15 +101,6 @@ export function useAtualizarIntimacao() {
   });
 }
 
-export function useRemoverIntimacao() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: ID) => intimacoesService.remove(id),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
-  });
-}
-
 /* ------------------------------------------------------------------ */
 /* Distribuição (Tela 1.1)                                             */
 /* ------------------------------------------------------------------ */

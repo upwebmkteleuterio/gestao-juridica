@@ -9,7 +9,6 @@ export interface ConfiguracaoSistema {
   oabs_monitoradas: string[];
   horario_cron_djen: string;
   ia_modelo: string;
-  ia_api_key: string;
   ia_system_prompt: string;
   updated_at: ISODate;
 }

@@ -1,0 +1,1 @@
+create trigger intimacoes_atualizar before update on public.intimacoes for each row execute function public.atualizar_intimacao()

@@ -128,11 +128,3 @@ export function useMoverEtapa() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: tarefasKeys.all }),
   });
 }
-
-export function useRemoverTarefaPrazo() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => tarefasPrazosService.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: tarefasKeys.all }),
-  });
-}

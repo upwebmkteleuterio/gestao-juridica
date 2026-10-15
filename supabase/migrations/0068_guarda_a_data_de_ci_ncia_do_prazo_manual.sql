@@ -1,0 +1,1 @@
+alter table public.tarefas_prazos add column data_ciencia date

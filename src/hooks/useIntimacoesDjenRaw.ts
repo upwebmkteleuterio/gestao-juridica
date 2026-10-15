@@ -5,11 +5,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { intimacoesDjenRawService } from "@/services";
-import type {
-  ConsultaAuditoriaDjen,
-  IntimacaoDjenRawInput,
-  ParametrosCapturaDjen,
-} from "@/types";
+import { intimacoesKeys } from "./useIntimacoes";
+import type { ConsultaAuditoriaDjen, ParametrosCapturaDjen } from "@/types";
 
 export const intimacoesDjenRawKeys = {
   all: ["intimacoes-djen-raw"] as const,
@@ -54,6 +51,7 @@ export function useDispararConsultaDjen() {
       intimacoesDjenRawService.dispararConsulta(params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: intimacoesDjenRawKeys.all });
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all });
       queryClient.invalidateQueries({ queryKey: ["eventos-auditoria"] });
     },
   });
@@ -78,39 +76,5 @@ export function useContagemAnaliseIA() {
   return useQuery({
     queryKey: intimacoesDjenRawKeys.status,
     queryFn: () => intimacoesDjenRawService.contarPorStatus(),
-  });
-}
-
-export function useCriarIntimacaoDjenRaw() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: IntimacaoDjenRawInput) =>
-      intimacoesDjenRawService.create(input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: intimacoesDjenRawKeys.all }),
-  });
-}
-
-export function useAtualizarIntimacaoDjenRaw() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      id,
-      input,
-    }: {
-      id: string;
-      input: Partial<IntimacaoDjenRawInput>;
-    }) => intimacoesDjenRawService.update(id, input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: intimacoesDjenRawKeys.all }),
-  });
-}
-
-export function useRemoverIntimacaoDjenRaw() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => intimacoesDjenRawService.remove(id),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: intimacoesDjenRawKeys.all }),
   });
 }

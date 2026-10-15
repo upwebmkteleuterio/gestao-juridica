@@ -1,97 +1,52 @@
-import { advogadosMock, intimacoesMock, tarefasPrazosMock } from "@/mocks";
+import { supabase } from "@/integrations/supabase/client";
 import { diasAte } from "@/lib/format";
 import { slaDeDataFatal } from "@/lib/sla";
 import type {
-  Advogado,
   AdvogadoCarga,
   CargaAdvogado,
   ConsultaEsteira,
   EtapaKanban,
   ID,
-  Intimacao,
   ResultadoEsteira,
   ResumoUrgenciaEsteira,
   TarefaPrazo,
   TarefaPrazoInput,
   UrgenciaEsteira,
 } from "@/types";
-import {
-  CHAVES,
-  agora,
-  criarId,
-  criarRepositorio,
-  delay,
-  lerColecao,
-} from "./storage";
+import { mensagemDeErro } from "./erros";
+import { criarRepositorioSupabase } from "./repositorioSupabase";
 
-/** Monta a entidade completa a partir do formulário (id + timestamps). */
-export function montarTarefa(input: TarefaPrazoInput): TarefaPrazo {
-  const carimbo = agora();
-  return {
-    ...input,
-    id: criarId("tar"),
-    created_at: carimbo,
-    updated_at: carimbo,
-  };
-}
-
-export const ETAPAS_KANBAN: EtapaKanban[] = [
-  "fila",
-  "redacao",
-  "revisao",
-  "pronto_protocolo",
-  "concluido",
-];
-
-const repositorio = criarRepositorio<TarefaPrazo, TarefaPrazoInput>({
-  chave: CHAVES.tarefasPrazos,
-  seed: tarefasPrazosMock,
-  construir: montarTarefa,
-  antesDeAtualizar: (proximo, anterior) => ({
-    ...proximo,
-    concluido_em:
-      proximo.etapa_kanban === "concluido"
-        ? (anterior.concluido_em ?? agora())
-        : null,
-    updated_at: agora(),
-  }),
+export const ETAPAS_KANBAN: EtapaKanban[] = ["fila", "redacao", "revisao", "pronto_protocolo", "concluido"];
+const COLUNAS = "id, origem, intimacao_id, advogado_id, numero_processo, partes_resumo, tipo_peca, data_fatal, etapa_kanban, link_minuta, notas_internas, recibo_protocolo_url, data_ciencia, concluido_em, created_at, updated_at";
+const COLUNAS_EMBED = `${COLUNAS}, intimacoes(tribunal_sigla)`;
+const repositorio = criarRepositorioSupabase<TarefaPrazo, TarefaPrazoInput>({
+  tabela: "tarefas_prazos",
+  colunas: COLUNAS,
+  montar: normalizar,
 });
 
-/** Sigla do tribunal do card: informada no cadastro ou herdada da intimação. */
-function tribunalDaTarefa(
-  tarefa: TarefaPrazo,
-  intimacoes: Intimacao[],
-): string | null {
-  if (tarefa.tribunal_sigla) return tarefa.tribunal_sigla;
-  if (!tarefa.intimacao_id) return null;
-  return (
-    intimacoes.find((intimacao) => intimacao.id === tarefa.intimacao_id)
-      ?.tribunal_sigla ?? null
-  );
+function normalizar(linha: TarefaPrazo): TarefaPrazo {
+  return { ...linha, partes_resumo: linha.partes_resumo ?? "", tipo_peca: linha.tipo_peca ?? "" };
 }
 
-/** Faixas das pílulas de urgência da Tela 2 (SLA lido da data fatal). */
-function correspondeUrgencia(
-  tarefa: TarefaPrazo,
-  urgencia: UrgenciaEsteira,
-): boolean {
+function semCampoApresentacao(input: TarefaPrazoInput): Omit<TarefaPrazoInput, "tribunal_sigla"> {
+  const { tribunal_sigla, ...campos } = input;
+  void tribunal_sigla;
+  return campos;
+}
+
+function correspondeUrgencia(tarefa: TarefaPrazo, urgencia: UrgenciaEsteira): boolean {
   const sla = slaDeDataFatal(tarefa.data_fatal);
   const dias = diasAte(tarefa.data_fatal);
   switch (urgencia) {
-    case "criticos":
-      return sla.critico;
-    case "hoje":
-      return dias === 0;
-    case "semana":
-      return dias !== null && dias >= 0 && dias <= 7;
-    case "em_dia":
-      return !sla.critico && (dias === null || dias > 5);
-    default:
-      return true;
+    case "criticos": return sla.critico;
+    case "hoje": return dias === 0;
+    case "semana": return dias !== null && dias >= 0 && dias <= 7;
+    case "em_dia": return !sla.critico && (dias === null || dias > 5);
+    default: return true;
   }
 }
 
-/** Ordenação do Kanban: `data_fatal` ascendente, sem prazo por último. */
 function ordenarPorFatal(a: TarefaPrazo, b: TarefaPrazo): number {
   const fatalA = a.data_fatal ?? "9999-12-31";
   const fatalB = b.data_fatal ?? "9999-12-31";
@@ -99,54 +54,46 @@ function ordenarPorFatal(a: TarefaPrazo, b: TarefaPrazo): number {
   return a.tipo_peca.localeCompare(b.tipo_peca);
 }
 
-/** Repositório da tabela `tarefas_prazos` (Kanban de produção). */
+interface TarefaComIntimacao extends TarefaPrazo {
+  intimacoes?: { tribunal_sigla: string | null } | null;
+}
+
+function comTribunal(linha: TarefaComIntimacao): TarefaPrazo {
+  const { intimacoes, ...tarefa } = linha;
+  return { ...normalizar(tarefa), tribunal_sigla: intimacoes?.tribunal_sigla ?? null };
+}
+
 export const tarefasPrazosService = {
   ...repositorio,
 
-  /**
-   * Mesma tarefa, com a sigla do tribunal resolvida (herdada da intimação
-   * quando a origem é o DJEN) — usada pela execução da tarefa (Tela 2.1).
-   */
+  async create(input: TarefaPrazoInput): Promise<TarefaPrazo> {
+    return repositorio.create(semCampoApresentacao(input));
+  },
+
+  async update(id: ID, input: Partial<TarefaPrazoInput>): Promise<TarefaPrazo> {
+    const { tribunal_sigla, ...campos } = input;
+    void tribunal_sigla;
+    return repositorio.update(id, campos);
+  },
+
   async getById(id: ID): Promise<TarefaPrazo | null> {
-    const tarefa = await repositorio.getById(id);
-    if (!tarefa) return null;
-    const intimacoes = lerColecao<Intimacao>(CHAVES.intimacoes, intimacoesMock);
-    return { ...tarefa, tribunal_sigla: tribunalDaTarefa(tarefa, intimacoes) };
+    const { data, error } = await supabase.from("tarefas_prazos").select(COLUNAS_EMBED).eq("id", id).maybeSingle();
+    if (error) throw new Error(mensagemDeErro(error));
+    return data ? comTribunal(data as unknown as TarefaComIntimacao) : null;
   },
 
   async moverEtapa(id: ID, etapa_kanban: EtapaKanban): Promise<TarefaPrazo> {
-    return repositorio.update(id, { etapa_kanban });
+    const { data, error } = await supabase.from("tarefas_prazos").update({ etapa_kanban }).eq("id", id).select(COLUNAS).single();
+    if (error) throw new Error(mensagemDeErro(error));
+    return normalizar(data as unknown as TarefaPrazo);
   },
 
-  /**
-   * Kanban da Tela 2. O escopo (pauta pessoal/geral) e a urgência são
-   * resolvidos aqui; a tela apenas desenha as colunas devolvidas.
-   */
-  async listarEsteira(
-    consulta: ConsultaEsteira = {},
-  ): Promise<ResultadoEsteira> {
-    const intimacoes = lerColecao<Intimacao>(CHAVES.intimacoes, intimacoesMock);
-    const tarefas = lerColecao<TarefaPrazo>(
-      CHAVES.tarefasPrazos,
-      tarefasPrazosMock,
-    );
-
-    const base = tarefas
-      .filter((tarefa) => {
-        if (
-          consulta.escopo === "meus" &&
-          consulta.advogadoId &&
-          tarefa.advogado_id !== consulta.advogadoId
-        ) {
-          return false;
-        }
-        return true;
-      })
-      .map((tarefa) => ({
-        ...tarefa,
-        tribunal_sigla: tribunalDaTarefa(tarefa, intimacoes),
-      }));
-
+  async listarEsteira(consulta: ConsultaEsteira = {}): Promise<ResultadoEsteira> {
+    let query = supabase.from("tarefas_prazos").select(COLUNAS_EMBED);
+    if (consulta.escopo === "meus" && consulta.advogadoId) query = query.eq("advogado_id", consulta.advogadoId);
+    const { data, error } = await query;
+    if (error) throw new Error(mensagemDeErro(error));
+    const base = ((data ?? []) as unknown as TarefaComIntimacao[]).map(comTribunal);
     const ativas = base.filter((tarefa) => tarefa.etapa_kanban !== "concluido");
     const resumo: ResumoUrgenciaEsteira = {
       criticos: ativas.filter((t) => correspondeUrgencia(t, "criticos")).length,
@@ -155,139 +102,94 @@ export const tarefasPrazosService = {
       emDia: ativas.filter((t) => correspondeUrgencia(t, "em_dia")).length,
       total: base.length,
     };
-
     const urgencia = consulta.urgencia ?? "todos";
-    const filtradas =
-      urgencia === "todos"
-        ? base
-        : ativas.filter((tarefa) => correspondeUrgencia(tarefa, urgencia));
+    const filtradas = urgencia === "todos" ? base : ativas.filter((tarefa) => correspondeUrgencia(tarefa, urgencia));
     const ordenadas = [...filtradas].sort(ordenarPorFatal);
-
-    return delay({
-      colunas: ETAPAS_KANBAN.map((etapa) => ({
-        etapa,
-        tarefas: ordenadas.filter((tarefa) => tarefa.etapa_kanban === etapa),
-      })),
+    return {
+      colunas: ETAPAS_KANBAN.map((etapa) => ({ etapa, tarefas: ordenadas.filter((tarefa) => tarefa.etapa_kanban === etapa) })),
       resumo,
       total: ordenadas.length,
-    });
+    };
   },
 
   async listarPorAdvogado(advogado_id: ID): Promise<TarefaPrazo[]> {
-    const todas = await repositorio.getAll();
-    return todas.filter((tarefa) => tarefa.advogado_id === advogado_id);
+    const { data, error } = await supabase.from("tarefas_prazos").select(COLUNAS).eq("advogado_id", advogado_id);
+    if (error) throw new Error(mensagemDeErro(error));
+    return ((data ?? []) as unknown as TarefaPrazo[]).map(normalizar);
   },
 
-  /** Carga ativa (etapas não concluídas) por advogado. */
   async cargaPorAdvogado(): Promise<Record<ID, number>> {
-    const todas = await repositorio.getAll();
-    return todas
-      .filter((tarefa) => tarefa.etapa_kanban !== "concluido")
-      .reduce<Record<ID, number>>((acc, tarefa) => {
-        acc[tarefa.advogado_id] = (acc[tarefa.advogado_id] ?? 0) + 1;
-        return acc;
-      }, {});
+    const { data, error } = await supabase.from("tarefas_prazos").select("advogado_id").neq("etapa_kanban", "concluido");
+    if (error) throw new Error(mensagemDeErro(error));
+    return (data ?? []).reduce<Record<ID, number>>((carga, tarefa) => {
+      carga[tarefa.advogado_id] = (carga[tarefa.advogado_id] ?? 0) + 1;
+      return carga;
+    }, {});
   },
 
-  /** Tarefas com prazo crítico (< 48h) ainda em produção — central de alertas. */
   async listarCriticos(): Promise<TarefaPrazo[]> {
-    const todas = await repositorio.getAll();
-    return todas
-      .filter(
-        (tarefa) =>
-          tarefa.etapa_kanban !== "concluido" &&
-          slaDeDataFatal(tarefa.data_fatal).critico,
-      )
+    const { data, error } = await supabase.from("tarefas_prazos").select(COLUNAS).neq("etapa_kanban", "concluido");
+    if (error) throw new Error(mensagemDeErro(error));
+    return ((data ?? []) as unknown as TarefaPrazo[]).map(normalizar)
+      .filter((tarefa) => slaDeDataFatal(tarefa.data_fatal).critico)
       .sort((a, b) => (a.data_fatal ?? "").localeCompare(b.data_fatal ?? ""));
   },
 
-  /** Total de tarefas ainda em produção (badge da sidebar). */
   async contarAtivas(): Promise<number> {
-    const todas = await repositorio.getAll();
-    return todas.filter((tarefa) => tarefa.etapa_kanban !== "concluido")
-      .length;
+    const { count, error } = await supabase.from("tarefas_prazos").select("id", { count: "exact", head: true }).neq("etapa_kanban", "concluido");
+    if (error) throw new Error(mensagemDeErro(error));
+    return count ?? 0;
   },
 
-  /** Carga operacional por advogado, já com o nome (Tela 1 e 1.1). */
   async obterCapacidade(): Promise<CargaAdvogado[]> {
-    const tarefas = lerColecao<TarefaPrazo>(
-      CHAVES.tarefasPrazos,
-      tarefasPrazosMock,
-    );
-    const advogados = lerColecao<Advogado>(CHAVES.advogados, advogadosMock);
-
-    const capacidade = advogados
-      .map((advogado) => {
-        const ativas = tarefas.filter(
-          (tarefa) =>
-            tarefa.advogado_id === advogado.id &&
-            tarefa.etapa_kanban !== "concluido",
-        );
-        return {
-          advogado_id: advogado.id,
-          nome_completo: advogado.nome_completo,
-          total: ativas.length,
-          criticos: ativas.filter((tarefa) =>
-            slaDeDataFatal(tarefa.data_fatal).critico,
-          ).length,
-        };
-      })
-      .sort((a, b) => b.total - a.total);
-
-    return delay(capacidade);
+    const [advogados, tarefas] = await Promise.all([
+      supabase.from("advogados").select("id, nome_completo"),
+      supabase.from("tarefas_prazos").select(COLUNAS).neq("etapa_kanban", "concluido"),
+    ]);
+    if (advogados.error) throw new Error(mensagemDeErro(advogados.error));
+    if (tarefas.error) throw new Error(mensagemDeErro(tarefas.error));
+    const abertas = ((tarefas.data ?? []) as unknown as TarefaPrazo[]).map(normalizar);
+    return (advogados.data ?? []).map((advogado) => {
+      const proprias = abertas.filter((tarefa) => tarefa.advogado_id === advogado.id);
+      return { advogado_id: advogado.id, nome_completo: advogado.nome_completo, total: proprias.length, criticos: proprias.filter((tarefa) => slaDeDataFatal(tarefa.data_fatal).critico).length };
+    }).sort((a, b) => b.total - a.total);
   },
 
-  /**
-   * Cards do Painel da Equipe (Tela 4): a materialized view
-   * `view_produtividade_equipe` unida a `advogados`. `total_prazos` conta
-   * apenas prazos em aberto; `criticos_48h` lê o SLA da data fatal.
-   */
   async obterProdutividadeEquipe(): Promise<AdvogadoCarga[]> {
-    const tarefas = lerColecao<TarefaPrazo>(
-      CHAVES.tarefasPrazos,
-      tarefasPrazosMock,
-    );
-    const advogados = lerColecao<Advogado>(CHAVES.advogados, advogadosMock);
-
-    const produtividade = advogados
-      .map<AdvogadoCarga>((advogado) => {
-        const proprias = tarefas.filter(
-          (tarefa) => tarefa.advogado_id === advogado.id,
-        );
-        const abertas = proprias.filter(
-          (tarefa) => tarefa.etapa_kanban !== "concluido",
-        );
-        return {
-          advogado_id: advogado.id,
-          nome_completo: advogado.nome_completo,
-          email_corporativo: advogado.email_corporativo,
-          oab_numero: advogado.oab_numero,
-          oab_uf: advogado.oab_uf,
-          perfil: advogado.perfil,
-          ativo_distribuicao: advogado.ativo_distribuicao,
-          cargo: advogado.cargo,
-          total_prazos: abertas.length,
-          criticos_48h: abertas.filter(
-            (tarefa) => slaDeDataFatal(tarefa.data_fatal).critico,
-          ).length,
-          concluidos_mes: proprias.filter(
-            (tarefa) => tarefa.etapa_kanban === "concluido",
-          ).length,
-        };
-      })
-      .sort((a, b) => b.total_prazos - a.total_prazos);
-
-    return delay(produtividade);
+    const [advogados, tarefas] = await Promise.all([
+      supabase.from("advogados").select("id, nome_completo, email_corporativo, oab_numero, oab_uf, perfil, ativo_distribuicao, cargo"),
+      supabase.from("tarefas_prazos").select(COLUNAS),
+    ]);
+    if (advogados.error) throw new Error(mensagemDeErro(advogados.error));
+    if (tarefas.error) throw new Error(mensagemDeErro(tarefas.error));
+    const todas = ((tarefas.data ?? []) as unknown as TarefaPrazo[]).map(normalizar);
+    return (advogados.data ?? []).map((advogado) => {
+      const proprias = todas.filter((tarefa) => tarefa.advogado_id === advogado.id);
+      const abertas = proprias.filter((tarefa) => tarefa.etapa_kanban !== "concluido");
+      return {
+        advogado_id: advogado.id,
+        nome_completo: advogado.nome_completo,
+        email_corporativo: advogado.email_corporativo,
+        oab_numero: advogado.oab_numero ?? "",
+        oab_uf: advogado.oab_uf ?? "",
+        perfil: advogado.perfil,
+        ativo_distribuicao: advogado.ativo_distribuicao,
+        cargo: advogado.cargo,
+        total_prazos: abertas.length,
+        criticos_48h: abertas.filter((tarefa) => slaDeDataFatal(tarefa.data_fatal).critico).length,
+        concluidos_mes: proprias.filter((tarefa) => tarefa.etapa_kanban === "concluido").length,
+      };
+    }).sort((a, b) => b.total_prazos - a.total_prazos);
   },
 
   async contarPorEtapa(): Promise<Record<EtapaKanban, number>> {
-    const todas = await repositorio.getAll();
-    const contagem = ETAPAS_KANBAN.reduce(
-      (acc, etapa) => ({ ...acc, [etapa]: 0 }),
-      {} as Record<EtapaKanban, number>,
-    );
-    todas.forEach((tarefa) => {
-      contagem[tarefa.etapa_kanban] += 1;
+    const resultados = await Promise.all(ETAPAS_KANBAN.map((etapa) =>
+      supabase.from("tarefas_prazos").select("id", { count: "exact", head: true }).eq("etapa_kanban", etapa),
+    ));
+    const contagem = {} as Record<EtapaKanban, number>;
+    resultados.forEach((resultado, indice) => {
+      if (resultado.error) throw new Error(mensagemDeErro(resultado.error));
+      contagem[ETAPAS_KANBAN[indice]] = resultado.count ?? 0;
     });
     return contagem;
   },

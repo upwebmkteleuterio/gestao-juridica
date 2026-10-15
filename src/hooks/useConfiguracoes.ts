@@ -22,12 +22,3 @@ export function useAtualizarConfiguracoes() {
       queryClient.invalidateQueries({ queryKey: configuracoesKeys.all }),
   });
 }
-
-export function useRestaurarConfiguracoes() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => configuracoesService.restaurar(),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: configuracoesKeys.all }),
-  });
-}

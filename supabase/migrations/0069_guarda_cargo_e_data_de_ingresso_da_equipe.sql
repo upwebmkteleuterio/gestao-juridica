@@ -1,0 +1,1 @@
+alter table public.advogados add column cargo text, add column data_ingresso date

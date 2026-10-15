@@ -32,10 +32,7 @@ export interface TarefaPrazo {
    * tarefa é automática e informado no cadastro quando é manual.
    */
   tribunal_sigla?: string | null;
-  /**
-   * Campo auxiliar de apresentação (não persistido no banco): data de
-   * ciência do prazo manual, usada no resumo da execução da tarefa.
-   */
+  /** Data de ciência do prazo manual, persistida no banco. */
   data_ciencia?: DateOnly | null;
 }
 

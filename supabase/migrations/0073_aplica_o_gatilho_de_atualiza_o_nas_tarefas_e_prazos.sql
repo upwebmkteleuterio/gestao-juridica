@@ -1,0 +1,1 @@
+create trigger tarefas_prazos_atualizar before update on public.tarefas_prazos for each row execute function public.atualizar_tarefa_prazo()

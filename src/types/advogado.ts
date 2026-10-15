@@ -13,7 +13,7 @@ export interface Advogado {
   perfil: PerfilUsuario;
   ativo_distribuicao: boolean;
   created_at: ISODate;
-  /** Campos auxiliares de apresentação (não persistidos no banco). */
+  /** Campos persistidos na tabela de advogados. */
   cargo?: string;
   data_ingresso?: DateOnly;
 }
@@ -39,6 +39,6 @@ export interface AdvogadoCarga extends ProdutividadeEquipe {
   oab_uf: string;
   perfil: PerfilUsuario;
   ativo_distribuicao: boolean;
-  /** Campo auxiliar de apresentação (não persistido no banco). */
+  /** Cargo persistido na tabela de advogados. */
   cargo?: string;
 }

@@ -1,0 +1,1 @@
+create or replace function public.atualizar_tarefa_prazo() returns trigger language plpgsql security invoker set search_path = '' as $$ begin new.updated_at := now(); if new.etapa_kanban = 'concluido' then new.concluido_em := coalesce(old.concluido_em, now()); else new.concluido_em := null; end if; return new; end; $$

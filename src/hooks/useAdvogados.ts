@@ -53,6 +53,15 @@ export function useAtualizarAdvogado() {
   });
 }
 
+export function useAlternarDisponibilidadeAdvogado() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ativo_distribuicao }: { id: string; ativo_distribuicao: boolean }) =>
+      advogadosService.alternarDisponibilidade(id, ativo_distribuicao),
+    onSuccess: () => invalidarEquipe(queryClient),
+  });
+}
+
 /** Checagem de duplicidade da inscrição da OAB (Tela 4.1). */
 export function useVerificarOabEmUso() {
   return useMutation({
@@ -73,6 +82,6 @@ export function useRemoverAdvogado() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => advogadosService.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: advogadosKeys.all }),
+    onSuccess: () => invalidarEquipe(queryClient),
   });
 }
