@@ -105,6 +105,8 @@ export default function DjenMonitor() {
         }
       />
 
+      <PrazoConfigPanel />
+
       <div className="grid gap-4 sm:grid-cols-3">
         <KpiCard
           titulo="Taxa de sucesso da ingestão"
@@ -189,8 +191,6 @@ export default function DjenMonitor() {
         </Panel>
         <RoboConfigPanel />
       </div>
-
-      <PrazoConfigPanel />
 
       <Panel>
         <TableToolbar

@@ -1,7 +1,7 @@
 import { Bell, Menu, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useConfiguracoes, useTarefasCriticas } from "@/hooks";
+import { useIndicadoresIngestaoDjen, useTarefasCriticas } from "@/hooks";
 import { formatarData } from "@/lib/format";
 import { Badge, Button, IconButton } from "@/components/kit";
 import { ThemeToggle } from "./ThemeToggle";
@@ -13,12 +13,42 @@ export interface TopbarProps {
 /** Barra superior global: status do worker DJEN, atalho e central de alertas. */
 export function Topbar({ onAbrirMenu }: TopbarProps) {
   const navigate = useNavigate();
-  const { data: config } = useConfiguracoes();
+  const { data: indicadores } = useIndicadoresIngestaoDjen();
   const { data: criticos } = useTarefasCriticas();
   const [alertasAbertos, setAlertasAbertos] = useState(false);
   const areaAlertas = useRef<HTMLDivElement>(null);
 
   const alertas = criticos ?? [];
+  const capturaEm = indicadores?.ultimaCapturaEm ?? null;
+  const dataCaptura = capturaEm ? new Date(capturaEm) : null;
+  const capturaValida =
+    dataCaptura !== null && !Number.isNaN(dataCaptura.getTime());
+  const formatadorDia = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+  });
+  const formatadorHora = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const capturaHoje =
+    capturaValida && dataCaptura !== null
+      ? formatadorDia.format(dataCaptura) === formatadorDia.format(new Date())
+      : false;
+
+  const varianteCaptura: "success" | "warning" | "neutral" = !capturaValida
+    ? "neutral"
+    : capturaHoje
+      ? "success"
+      : "warning";
+  const textoCaptura =
+    dataCaptura === null
+      ? "DJEN sem captura registrada"
+      : capturaHoje
+        ? `DJEN sincronizado · hoje às ${formatadorHora.format(dataCaptura)}`
+        : `Última captura: ${formatadorDia.format(dataCaptura)} às ${formatadorHora.format(dataCaptura)}`;
 
   useEffect(() => {
     if (!alertasAbertos) return undefined;
@@ -46,9 +76,18 @@ export function Topbar({ onAbrirMenu }: TopbarProps) {
           <Menu className="h-4 w-4" />
         </IconButton>
 
-        <Badge variant="success" className="hidden sm:inline-flex">
-          <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
-          DJEN sincronizado · hoje às {config?.horario_cron_djen ?? "06:00"}
+        <Badge variant={varianteCaptura} className="hidden sm:inline-flex">
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${
+              !capturaValida
+                ? "bg-muted-foreground"
+                : capturaHoje
+                  ? "bg-success"
+                  : "bg-warning"
+            }`}
+            aria-hidden="true"
+          />
+          {textoCaptura}
         </Badge>
 
         <div className="ml-auto flex items-center gap-2">

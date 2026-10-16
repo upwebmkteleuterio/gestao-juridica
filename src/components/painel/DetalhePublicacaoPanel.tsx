@@ -3,6 +3,7 @@ import {
   ChevronUp,
   Copy,
   ExternalLink,
+  Eye,
   RefreshCw,
   Send,
   Sparkles,
@@ -19,6 +20,7 @@ import {
   FormField,
   IconButton,
   Input,
+  Modal,
   Select,
   Skeleton,
   SlidePanel,
@@ -80,6 +82,7 @@ export function DetalhePublicacaoPanel({
   const [advogadoId, setAdvogadoId] = useState("");
   const [erroAdvogado, setErroAdvogado] = useState<string>();
   const [teorExpandido, setTeorExpandido] = useState(false);
+  const [teorAberto, setTeorAberto] = useState(false);
 
   useEffect(() => {
     if (!intimacao) return;
@@ -89,6 +92,7 @@ export function DetalhePublicacaoPanel({
     setAdvogadoId(intimacao.advogado_id ?? "");
     setErroAdvogado(undefined);
     setTeorExpandido(false);
+    setTeorAberto(false);
   }, [intimacao]);
 
   const status = intimacao?.status_fluxo;
@@ -384,8 +388,9 @@ export function DetalhePublicacaoPanel({
                 htmlFor="painel-acao"
                 hint="Editável. A sugestão da máquina pode ser ajustada."
               >
-                <Input
+                <Textarea
                   id="painel-acao"
+                  rows={3}
                   value={acao}
                   onChange={(evento) => setAcao(evento.target.value)}
                 />
@@ -588,6 +593,15 @@ export function DetalhePublicacaoPanel({
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => setTeorAberto(true)}
+                  disabled={typeof payload?.texto !== "string"}
+                >
+                  <Eye className="h-3 w-3" aria-hidden="true" />
+                  Visualizar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() =>
                     copiar(
                       typeof payload?.texto === "string" ? payload.texto : "",
@@ -673,6 +687,54 @@ export function DetalhePublicacaoPanel({
           </section>
         </div>
       )}
+
+      {/* Inteiro teor em modal rolável, sobreposto ao painel de detalhe. */}
+      <Modal
+        open={teorAberto}
+        onClose={() => setTeorAberto(false)}
+        titulo="Inteiro teor da publicação"
+        descricao={`Processo ${intimacao?.numero_processo ?? "—"}`}
+        largura="max-w-3xl"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setTeorAberto(false)}>
+              Fechar
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (typeof payload?.texto === "string") {
+                  copiar(payload.texto, "Inteiro teor copiado.");
+                }
+              }}
+              disabled={typeof payload?.texto !== "string"}
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+              Copiar inteiro teor
+            </Button>
+          </>
+        }
+      >
+        <div className="max-h-[60vh] overflow-y-auto overscroll-contain pr-1">
+          {typeof payload?.texto === "string"
+            ? payload.texto
+                .split("\n")
+                .filter((linha) => linha.trim().length > 0)
+                .map((linha, indice) => (
+                  <p
+                    key={indice}
+                    className={
+                      indice === 0
+                        ? "text-[13px] leading-relaxed"
+                        : "mt-3 text-[13px] leading-relaxed"
+                    }
+                  >
+                    {linha}
+                  </p>
+                ))
+            : null}
+        </div>
+      </Modal>
     </SlidePanel>
   );
 }

@@ -35,7 +35,7 @@ export function SlidePanel({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70]">
+    <div className="fixed inset-0 z-[70] overflow-hidden">
       <div
         className="absolute inset-0 animate-fade-in bg-navy-950/60"
         onClick={onClose}
@@ -48,7 +48,7 @@ export function SlidePanel({
         aria-label={titulo}
         tabIndex={-1}
         className={cn(
-          "absolute inset-y-0 right-0 flex w-full max-w-[520px] animate-slide-in-right flex-col bg-card shadow-drawer focus:outline-none",
+          "absolute inset-y-0 right-0 h-full flex w-full max-w-[520px] animate-slide-in-right flex-col bg-card shadow-drawer focus:outline-none",
           className,
         )}
       >
