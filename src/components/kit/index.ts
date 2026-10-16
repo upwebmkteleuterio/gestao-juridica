@@ -2,6 +2,7 @@ export * from "./Alert";
 export * from "./Avatar";
 export * from "./Badge";
 export * from "./Button";
+export * from "./CampoSenha";
 export * from "./CapacityMeter";
 export * from "./Card";
 export * from "./Checkbox";

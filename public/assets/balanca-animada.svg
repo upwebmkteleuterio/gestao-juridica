@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 500" fill="none" role="img" aria-labelledby="mg-motion-title mg-motion-desc">
+  <title id="mg-motion-title">Equilíbrio e clareza — Magalhães &amp; Gomes</title>
+  <desc id="mg-motion-desc">Uma balança dourada é desenhada entre documentos e uma lupa. Círculos aparecem em torno dela e a balança encontra o equilíbrio.</desc>
+  <defs>
+    <radialGradient id="mg-motion-bg" cx=".52" cy=".42" r=".8"><stop stop-color="#0d243c"/><stop offset="1" stop-color="#06182b"/></radialGradient>
+    <linearGradient id="mg-motion-gold" x1="85" y1="130" x2="330" y2="400" gradientUnits="userSpaceOnUse"><stop stop-color="#a67c32"/><stop offset=".46" stop-color="#e5c57e"/><stop offset="1" stop-color="#ad8237"/></linearGradient>
+    <linearGradient id="mg-motion-paper" x1="106" y1="300" x2="190" y2="407" gradientUnits="userSpaceOnUse"><stop stop-color="#b6c1ce"/><stop offset="1" stop-color="#687b91"/></linearGradient>
+  </defs>
+  <style>
+    .mg-motion-root{--mg-duration:1;--mg-play:running}
+    .mg-motion-root *{animation-play-state:var(--mg-play)!important}
+    .mg-stroke{stroke:url(#mg-motion-gold);stroke-width:1.15;stroke-linecap:round;stroke-linejoin:round}
+    .mg-fine{stroke-width:.7}
+    .mg-draw{stroke-dasharray:1;stroke-dashoffset:1;animation:mg-draw calc(1.3s * var(--mg-duration)) cubic-bezier(.3,0,.15,1) forwards;animation-delay:calc(var(--mg-delay,0s) * var(--mg-duration))}
+    .mg-appear{opacity:0;animation:mg-appear calc(1.3s * var(--mg-duration)) ease forwards;animation-delay:calc(var(--mg-delay,0s) * var(--mg-duration))}
+    .mg-orbit{transform-origin:210px 242px;opacity:0;animation:mg-orbit calc(2s * var(--mg-duration)) cubic-bezier(.2,.7,.2,1) forwards;animation-delay:calc(var(--mg-delay,2s) * var(--mg-duration))}
+    .mg-arm{transform-origin:210px 188px;animation:mg-settle calc(3.2s * var(--mg-duration)) ease-in-out both;animation-delay:calc(1.55s * var(--mg-duration))}
+    .mg-breathe{transform-origin:210px 188px;animation:mg-breathe 10s ease-in-out infinite;animation-delay:calc(4.75s * var(--mg-duration))}
+    .mg-spark{opacity:0;animation:mg-spark 7s ease-in-out infinite;animation-delay:calc(var(--mg-delay,4.3s) * var(--mg-duration))}
+    .mg-lens{transform-origin:272px 370px;opacity:0;animation:mg-lens calc(1.4s * var(--mg-duration)) cubic-bezier(.2,.7,.2,1) forwards;animation-delay:calc(2.8s * var(--mg-duration))}
+    .mg-glimmer{opacity:0;stroke:#f2d89b;stroke-width:1.8;stroke-linecap:round;stroke-dasharray:22 600;animation:mg-glimmer 9s ease-in-out infinite;animation-delay:calc(4.5s * var(--mg-duration))}
+    @keyframes mg-draw{to{stroke-dashoffset:0}}
+    @keyframes mg-appear{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes mg-orbit{from{opacity:0;transform:scale(.86) rotate(-12deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+    @keyframes mg-settle{0%{transform:rotate(-4deg)}40%{transform:rotate(2.2deg)}70%{transform:rotate(-.8deg)}100%{transform:rotate(0)}}
+    @keyframes mg-breathe{0%,100%{transform:rotate(0)}35%{transform:rotate(.65deg)}70%{transform:rotate(-.65deg)}}
+    @keyframes mg-lens{from{opacity:0;transform:translate(8px,9px)}to{opacity:1;transform:translate(0,0)}}
+    @keyframes mg-spark{0%,100%{opacity:.25}45%{opacity:.9}75%{opacity:.4}}
+    @keyframes mg-glimmer{0%,68%{opacity:0;stroke-dashoffset:50}75%{opacity:.8}92%,100%{opacity:0;stroke-dashoffset:-450}}
+    .mg-motion-root.mg-static *{animation:none!important;stroke-dashoffset:0!important}
+    .mg-motion-root.mg-static .mg-appear,.mg-motion-root.mg-static .mg-orbit,.mg-motion-root.mg-static .mg-lens{opacity:1;transform:none}
+    .mg-motion-root.mg-static .mg-spark{opacity:.5}
+    .mg-motion-root.mg-static .mg-glimmer{opacity:0}
+    @media(prefers-reduced-motion:reduce){.mg-motion-root *{animation:none!important;stroke-dashoffset:0!important}.mg-appear,.mg-orbit,.mg-lens{opacity:1;transform:none}.mg-spark{opacity:.5}.mg-glimmer{opacity:0}}
+  </style>
+  <g class="mg-motion-root">
+    <rect width="420" height="500" rx="20" fill="url(#mg-motion-bg)"/>
+    <rect x=".5" y=".5" width="419" height="499" rx="19.5" stroke="#23384e"/>
+    <!-- Órbitas: surgimento independente do desenho central. -->
+    <g class="mg-stroke mg-fine">
+      <circle class="mg-draw" pathLength="1" cx="210" cy="236" r="128" style="--mg-delay:2.1s"/>
+      <g class="mg-orbit" style="--mg-delay:2.65s"><ellipse cx="210" cy="300" rx="163" ry="108" stroke-dasharray="1 4.5" opacity=".65"/></g>
+      <g class="mg-orbit" style="--mg-delay:3.1s"><path d="M73 236v69m0 15v16M210 77V141m0 246v47" opacity=".5"/><circle cx="210" cy="76" r="2.5"/><circle cx="210" cy="435" r="2.5"/></g>
+    </g>
+    <!-- Documento: cor fria discreta para preservar a hierarquia do dourado. -->
+    <g stroke="url(#mg-motion-paper)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+      <path class="mg-draw" pathLength="1" d="M105 320H94v106h87" style="--mg-delay:.4s"/>
+      <path class="mg-draw" pathLength="1" d="M105 309h65l21 21v86h-86V309Zm65 0v21h21" style="--mg-delay:.6s"/>
+      <path class="mg-draw" pathLength="1" d="M116 341h43m-43 11h59m-59 11h59m-59 11h59m-59 11h48m-48 11h37" style="--mg-delay:1.1s"/>
+    </g>
+    <!-- Socle et colonne. -->
+    <g class="mg-stroke">
+      <path class="mg-draw" pathLength="1" d="M57 436h306" style="--mg-delay:0s"/>
+      <path class="mg-draw" pathLength="1" d="M143 436v-20h116v20M157 416v-10h86v10M171 406v-9h59v9" style="--mg-delay:.35s"/>
+      <path class="mg-draw" pathLength="1" d="M184 397c12-7 19-17 19-34V211h14v152c0 17 7 27 19 34M201 212h18m-16 6h14M203 330h14m-14 4h14m-14 5h14m-14 8h14m-14 5h14M207 220v107m0 27v17c0 9-3 17-8 22m14-173v107m0 27v17c0 9 3 17 8 22" style="--mg-delay:.85s"/>
+      <path class="mg-draw" pathLength="1" d="M204 210v-7m12 7v-7M205 177l-2-11 7-15 7 15-2 11M205 179h10m-10-3h10" style="--mg-delay:1.15s"/>
+    </g>
+    <!-- Travessa e pratos. O movimento converge para o equilíbrio. -->
+    <g class="mg-arm"><g class="mg-breathe mg-stroke">
+      <path class="mg-draw" pathLength="1" d="M200 184c-24-15-41 12-65 7m65-3c-24-14-41 13-65 7M220 184c24-15 41 12 65 7m-65-3c24-14 41 13 65 7" style="--mg-delay:1.35s"/>
+      <circle class="mg-draw" pathLength="1" cx="135" cy="191" r="4" style="--mg-delay:1.45s"/><circle class="mg-draw" pathLength="1" cx="285" cy="191" r="4" style="--mg-delay:1.45s"/>
+      <path class="mg-draw mg-fine" pathLength="1" d="m135 195-34 87m34-87v87m0-87 34 87m116-87-34 87m34-87v87m0-87 34 87" style="--mg-delay:1.65s"/>
+      <path class="mg-draw" pathLength="1" d="M100 282h70c-6 20-56 20-70 0Zm4 4h62M250 282h70c-6 20-56 20-70 0Zm4 4h62" style="--mg-delay:1.95s"/>
+    </g></g>
+    <g class="mg-stroke"><circle class="mg-draw" pathLength="1" cx="210" cy="188" r="11" style="--mg-delay:1.25s"/><circle class="mg-draw" pathLength="1" cx="210" cy="188" r="7" style="--mg-delay:1.4s"/><circle class="mg-draw" pathLength="1" cx="210" cy="188" r="3" style="--mg-delay:1.55s"/></g>
+    <!-- Lupa: entrada suave, sem varredura exagerada. -->
+    <g class="mg-lens mg-stroke"><circle cx="272" cy="379" r="43" fill="#071a2d"/><circle cx="272" cy="379" r="37"/><path d="M247 352a35 35 0 0 1 40-5m-47 16a35 35 0 0 0 1 36" opacity=".6"/><path d="m302 410 9 9m-4-14 9 9m-7 5 7-7 29 29-7 7-29-29Zm25 18 7-7m-2 12 7-7"/></g>
+    <g fill="#d6b36c"><circle class="mg-appear" cx="57" cy="436" r="1.5" style="--mg-delay:.2s"/><circle class="mg-appear" cx="363" cy="436" r="1.5" style="--mg-delay:1s"/><circle class="mg-spark" cx="102" cy="169" r="1.5" style="--mg-delay:4.2s"/><circle class="mg-spark" cx="327" cy="227" r="1.5" style="--mg-delay:5.6s"/><circle class="mg-spark" cx="75" cy="353" r="1" style="--mg-delay:6.2s"/></g>
+    <circle class="mg-glimmer" cx="210" cy="236" r="128"/>
+  </g>
+</svg>

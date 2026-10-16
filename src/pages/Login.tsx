@@ -1,7 +1,7 @@
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Alert, Button, FormField, Input, Panel } from "@/components/kit";
+import { Alert, Button, CampoSenha, FormField, Input, Panel } from "@/components/kit";
 import { useSessao, useUsuarioAtual } from "@/hooks";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -69,7 +69,7 @@ export default function Login() {
           <p className="eyebrow text-gold-500">Operações jurídicas</p>
           <h1 className="mt-4 text-white">Clareza para decidir.<br />Controle para avançar.</h1>
           <p className="mt-5 text-[13px] leading-relaxed text-white/60">Acompanhe publicações, prazos e a operação jurídica do escritório em um único ambiente.</p>
-          <img src="/assets/login-illustration.png" alt="" aria-hidden="true" className="mt-8 w-full max-w-sm rounded-lg border border-white/10 object-cover" />
+          <img src="/assets/balanca-animada.svg" alt="Balança da justiça entre documentos e uma lupa" width={420} height={500} className="mt-8 h-auto w-full max-w-sm" />
         </div>
         <p className="relative text-[10px] text-white/35">Magalhães & Gomes Advogados</p>
       </section>
@@ -96,7 +96,7 @@ export default function Login() {
                 <Input id="login-email" type="email" value={email} onChange={(evento) => setEmail(evento.target.value)} placeholder="nome@magalhaesgomes.adv.br" autoComplete="username" required />
               </FormField>
               <FormField label="Senha" htmlFor="login-senha" required>
-                <Input id="login-senha" type="password" value={senha} onChange={(evento) => setSenha(evento.target.value)} placeholder="••••••••" autoComplete="current-password" required />
+                <CampoSenha id="login-senha" value={senha} onChange={(evento) => setSenha(evento.target.value)} placeholder="••••••••" autoComplete="current-password" required />
               </FormField>
               <Button type="submit" variant="primary" size="lg" className="w-full" loading={carregando}>
                 Entrar no sistema <ArrowRight className="h-4 w-4" aria-hidden="true" />

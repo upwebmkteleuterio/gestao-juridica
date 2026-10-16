@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   Alert,
   Button,
+  CampoSenha,
   FormField,
   Input,
   Modal,
@@ -252,7 +253,7 @@ export function AdvogadoModal({ open, advogadoId, onClose }: AdvogadoModalProps)
 
           {!advogadoId ? (
             <FormField label="Senha provisória" htmlFor="advogado-senha" required error={erroSenha}>
-              <Input id="advogado-senha" type="password" autoComplete="new-password" value={senha} aria-invalid={Boolean(erroSenha) || undefined} onChange={(evento) => { setSenha(evento.target.value); setErroSenha(""); }} />
+              <CampoSenha id="advogado-senha" autoComplete="new-password" value={senha} aria-invalid={Boolean(erroSenha) || undefined} onChange={(evento) => { setSenha(evento.target.value); setErroSenha(""); }} />
               <p className="mt-1 text-[10px] text-muted-foreground">A pessoa poderá trocá-la em “Redefinir senha”.</p>
             </FormField>
           ) : null}

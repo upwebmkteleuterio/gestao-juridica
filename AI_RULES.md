@@ -21,7 +21,7 @@
 - **Claro/escuro**: `darkMode: ["class"]` + variáveis CSS em `:root` / `.dark`. A escolha do usuário é persistida (nunca seguir o tema do navegador). Alternador em `ThemeToggle`.
 - A **sidebar permanece navy nos dois temas** (identidade da marca), com 236px de largura.
 - Classes utilitárias próprias: `.eyebrow` e `.label-kit`.
-- Use os componentes de `src/components/kit/` em todas as telas (Button, Badge, Panel, KpiCard, Input, FormField, Table, SlidePanel, Modal, ConfirmDialog, Alert, EmptyState, ErrorState, Skeleton, Avatar, Switch, SegmentedControl, PageHeading, SectionHeading). Não repita HTML por tela.
+- Use os componentes de `src/components/kit/` em todas as telas (Button, Badge, Panel, KpiCard, Input, CampoSenha, FormField, Table, SlidePanel, Modal, ConfirmDialog, Alert, EmptyState, ErrorState, Skeleton, Avatar, Switch, SegmentedControl, PageHeading, SectionHeading). Não repita HTML por tela.
 
 # Arquitetura de pastas
 
