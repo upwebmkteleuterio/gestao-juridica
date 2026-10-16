@@ -5,12 +5,20 @@ export const advogadosKeys = {
   all: ["advogados"] as const,
   detalhe: (id: string) => ["advogados", id] as const,
   elegiveis: ["advogados", "elegiveis"] as const,
+  visiveis: ["advogados", "visiveis"] as const,
 };
 
 export function useAdvogados() {
   return useQuery({
     queryKey: advogadosKeys.all,
     queryFn: () => advogadosService.getAll(),
+  });
+}
+
+export function useAdvogadosVisiveis() {
+  return useQuery({
+    queryKey: advogadosKeys.visiveis,
+    queryFn: () => advogadosService.listarVisiveis(),
   });
 }
 

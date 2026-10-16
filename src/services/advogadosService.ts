@@ -19,6 +19,12 @@ export const advogadosService = {
     return ((data ?? []) as unknown as Advogado[]).map(montar);
   },
 
+  async listarVisiveis(): Promise<Advogado[]> {
+    const { data, error } = await supabase.from("advogados").select(COLUNAS).eq("oculto_da_equipe", false);
+    if (error) throw new Error(mensagemDeErro(error));
+    return ((data ?? []) as unknown as Advogado[]).map(montar);
+  },
+
   async getById(id: string): Promise<Advogado | null> {
     const { data, error } = await supabase.from("advogados").select(COLUNAS).eq("id", id).maybeSingle();
     if (error) throw new Error(mensagemDeErro(error));
@@ -29,7 +35,8 @@ export const advogadosService = {
     const { data, error } = await supabase
       .from("advogados")
       .select(COLUNAS)
-      .eq("ativo_distribuicao", true);
+      .eq("ativo_distribuicao", true)
+      .eq("oculto_da_equipe", false);
     if (error) throw new Error(mensagemDeErro(error));
     return ((data ?? []) as unknown as Advogado[]).map(montar);
   },

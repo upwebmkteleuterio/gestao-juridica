@@ -194,7 +194,7 @@ export const tarefasPrazosService = {
 
   async obterCapacidade(): Promise<CargaAdvogado[]> {
     const [advogados, tarefas] = await Promise.all([
-      supabase.from("advogados").select("id, nome_completo"),
+      supabase.from("advogados").select("id, nome_completo").eq("oculto_da_equipe", false),
       supabase.from("tarefas_prazos").select(COLUNAS).neq("etapa_kanban", "concluido"),
     ]);
     if (advogados.error) throw new Error(mensagemDeErro(advogados.error));
@@ -208,7 +208,7 @@ export const tarefasPrazosService = {
 
   async obterProdutividadeEquipe(): Promise<AdvogadoCarga[]> {
     const [advogados, tarefas] = await Promise.all([
-      supabase.from("advogados").select("id, nome_completo, email_corporativo, oab_numero, oab_uf, perfil, ativo_distribuicao, cargo, data_ingresso"),
+      supabase.from("advogados").select("id, nome_completo, email_corporativo, oab_numero, oab_uf, perfil, ativo_distribuicao, cargo, data_ingresso").eq("oculto_da_equipe", false),
       supabase.from("tarefas_prazos").select(COLUNAS),
     ]);
     if (advogados.error) throw new Error(mensagemDeErro(advogados.error));

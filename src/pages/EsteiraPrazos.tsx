@@ -18,7 +18,7 @@ import {
   KanbanBoard,
   PrazoManualModal,
 } from "@/components/esteira";
-import { useAdvogados, useEsteira, useUsuarioAtual } from "@/hooks";
+import { useAdvogados, useAdvogadosVisiveis, useEsteira, useUsuarioAtual } from "@/hooks";
 import { useUiStore } from "@/store";
 import type { EtapaKanban, ID, TarefaPrazo, UrgenciaEsteira } from "@/types";
 import { Archive } from "lucide-react";
@@ -71,6 +71,7 @@ export default function EsteiraPrazos() {
   );
   const esteira = useEsteira(consulta);
   const { data: advogados } = useAdvogados();
+  const { data: advogadosVisiveis } = useAdvogadosVisiveis();
   const reordenar = useReordenarKanban(consulta);
   const arquivar = useArquivarTarefa();
   const registrarEvento = useRegistrarEvento();
@@ -166,7 +167,7 @@ export default function EsteiraPrazos() {
                 onChange={(evento) => setFiltroEsteira({ responsavelId: evento.target.value || null })}
               >
                 <option value="">Todos</option>
-                {(advogados ?? []).map((advogado) => (
+                {(advogadosVisiveis ?? []).map((advogado) => (
                   <option key={advogado.id} value={advogado.id}>{advogado.nome_completo}</option>
                 ))}
               </Select>

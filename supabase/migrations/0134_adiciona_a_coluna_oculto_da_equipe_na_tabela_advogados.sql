@@ -1,0 +1,1 @@
+ALTER TABLE public.advogados ADD COLUMN IF NOT EXISTS oculto_da_equipe boolean NOT NULL DEFAULT false;

@@ -28,7 +28,7 @@ import {
   Textarea,
 } from "@/components/kit";
 import {
-  useAdvogados,
+  useAdvogadosVisiveis,
   useAnalisarPublicacao,
   useAnalisesIa,
   useDispensarIntimacao,
@@ -68,7 +68,7 @@ export function DetalhePublicacaoPanel({
   const rawQuery = useIntimacaoDjenRaw(intimacao?.raw_id);
   const payload = rawQuery.data?.payload_json;
 
-  const { data: advogados } = useAdvogados();
+  const { data: advogados } = useAdvogadosVisiveis();
   const enviar = useEnviarParaEsteira();
   const dispensar = useDispensarIntimacao();
   const reativar = useReativarIntimacao();

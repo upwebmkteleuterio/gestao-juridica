@@ -11,7 +11,7 @@ import {
   Skeleton,
   Textarea,
 } from "@/components/kit";
-import { useAdvogados, useCriarTarefaPrazo, useUsuarioAtual } from "@/hooks";
+import { useAdvogadosVisiveis, useCriarTarefaPrazo, useUsuarioAtual } from "@/hooks";
 import { calcularDataFatal, type TipoContagemPrazo } from "@/lib/prazos";
 import { cnjValido, mascararCnj } from "@/lib/format";
 import { useUiStore } from "@/store";
@@ -59,7 +59,7 @@ export function PrazoManualModal({ open, onClose }: PrazoManualModalProps) {
   const setRascunho = useUiStore((estado) => estado.setRascunhoPrazoManual);
   const limparRascunho = useUiStore((estado) => estado.limparRascunhoPrazoManual);
   const criar = useCriarTarefaPrazo();
-  const advogadosQuery = useAdvogados();
+  const advogadosQuery = useAdvogadosVisiveis();
   const [campos, setCampos] = useState<Campos>(CAMPOS_INICIAIS);
   const [dataFatalManual, setDataFatalManual] = useState(false);
   const [erros, setErros] = useState<Erros>({});
