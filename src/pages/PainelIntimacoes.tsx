@@ -57,6 +57,7 @@ import {
 import { contarDiasUteis } from "@/lib/datas";
 import { baixarArquivo, gerarCsv } from "@/lib/exportar";
 import { formatarData, truncar } from "@/lib/format";
+import { somarDiasUteis } from "@/lib/prazos";
 import { useUsuarioAtual } from "@/hooks";
 import { useUiStore } from "@/store";
 import type { ConsultaIntimacoes, ID } from "@/types";
@@ -195,7 +196,9 @@ export default function PainelIntimacoes() {
             : "Não identificado",
           String(
             contarDiasUteis(
-              item.data_disponibilizacao,
+              item.data_disponibilizacao
+                ? somarDiasUteis(item.data_disponibilizacao, 1)
+                : null,
               item.data_fatal_calculada,
             ) ?? "",
           ),
@@ -489,7 +492,9 @@ export default function PainelIntimacoes() {
                     ? nomePorId.get(item.advogado_id)
                     : undefined;
                   const dias = contarDiasUteis(
-                    item.data_disponibilizacao,
+                    item.data_disponibilizacao
+                      ? somarDiasUteis(item.data_disponibilizacao, 1)
+                      : null,
                     item.data_fatal_calculada,
                   );
                   return (

@@ -83,12 +83,13 @@ export function KanbanBoard({
               setIdArrastado(null);
               setEtapaAlvo(null);
             }}
-            className={`w-[276px] shrink-0 transition-colors xl:w-auto xl:flex-1 ${etapaAlvo === etapa ? "border-info bg-info-bg/40" : ""} ${atualizando ? "opacity-75" : ""}`}
+            className={`w-[276px] shrink-0 transition-colors xl:w-auto xl:min-w-0 xl:basis-0 xl:flex-1 ${etapaAlvo === etapa ? "border-info bg-info-bg/40" : ""} ${atualizando ? "opacity-75" : ""}`}
           >
             <PanelHeader
+              className="flex-nowrap"
               titulo={config.titulo}
               descricao={config.descricao}
-              acoes={<Badge variant="neutral">{carregando ? "—" : itens.length}</Badge>}
+              acoes={<Badge variant="neutral" className="shrink-0">{carregando ? "—" : itens.length}</Badge>}
             />
             <div className="min-h-40 space-y-3 p-3">
               {carregando ? (

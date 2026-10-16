@@ -1,3 +1,5 @@
+import { feriadosNacionais } from "./prazos";
+
 /** Auxiliares de data (sem regras jurídicas de contagem de prazo). */
 
 /** Data pura de hoje (YYYY-MM-DD) no fuso do escritório. */
@@ -26,9 +28,8 @@ export function horasAte(
 }
 
 /**
- * Conta dias úteis (seg–sex) após a data inicial, até a data final.
- * Não considera feriados e serve apenas como referência visual — a
- * conferência do prazo é sempre humana.
+ * Conta dias úteis (seg–sex) após a data inicial, até a data final,
+ * considerando feriados nacionais. A conferência do prazo é sempre humana.
  */
 export function contarDiasUteis(
   inicio?: string | null,
@@ -40,12 +41,17 @@ export function contarDiasUteis(
   if (Number.isNaN(de.getTime()) || Number.isNaN(ate.getTime())) return null;
   if (ate < de) return null;
 
+  const feriados = new Set<string>();
+  for (let ano = de.getUTCFullYear() - 1; ano <= ate.getUTCFullYear() + 1; ano += 1) {
+    feriadosNacionais(ano).forEach((feriado) => feriados.add(feriado));
+  }
+
   let total = 0;
   const cursor = new Date(de);
   cursor.setUTCDate(cursor.getUTCDate() + 1);
   while (cursor <= ate) {
     const dia = cursor.getUTCDay();
-    if (dia !== 0 && dia !== 6) total += 1;
+    if (dia !== 0 && dia !== 6 && !feriados.has(cursor.toISOString().slice(0, 10))) total += 1;
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return total;

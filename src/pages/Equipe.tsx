@@ -162,7 +162,7 @@ export default function Equipe() {
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="navy">{advogado.perfil === "admin" ? "Admin" : "Advogado"}</Badge>
                         <Button variant="secondary" size="sm" onClick={() => navigate(`/equipe/advogado/${advogado.advogado_id}`)}><Pencil className="h-3 w-3" aria-hidden="true" />Editar advogado</Button>
-                        {advogado.total_prazos > 0 ? <Button variant="secondary" size="sm" onClick={() => setDevolverSelecionado(advogado)}><Undo2 className="h-3 w-3" aria-hidden="true" />Devolver ao painel</Button> : null}
+                        {advogado.total_prazos > 0 ? <Button variant="secondary" size="sm" onClick={() => setDevolverSelecionado(advogado)}><Undo2 className="h-3 w-3" aria-hidden="true" />Devolver {advogado.total_prazos} ao painel</Button> : null}
                         {acessoConhecido && acesso ? <Button variant="secondary" size="sm" disabled={definirAcesso.isPending} onClick={() => void alternarAcesso(advogado, !acesso.pode_entrar)}><ShieldOff className="h-3 w-3" aria-hidden="true" />{acesso.pode_entrar ? "Bloquear acesso" : "Liberar acesso"}</Button> : null}
                         <Button variant="danger" size="sm" onClick={() => { setMensagemExclusao(""); setSelecionado(advogado); }}><Trash2 className="h-3 w-3" aria-hidden="true" />Excluir</Button>
                       </div>

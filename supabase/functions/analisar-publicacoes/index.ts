@@ -327,8 +327,8 @@ serve(async (request) => {
       const dias = diasDeclarados ?? (typeof prazoPadrao === "number" && Number.isInteger(prazoPadrao) && prazoPadrao >= 1 && prazoPadrao <= 365 ? prazoPadrao : null);
       if (dias !== null) {
         try {
-          const { data, error } = await admin.rpc("calcular_data_fatal", {
-            p_data_base: linha.data_disponibilizacao,
+          const { data, error } = await admin.rpc("calcular_prazo_djen", {
+            p_disponibilizacao: linha.data_disponibilizacao,
             p_dias: dias,
           });
           if (error) {

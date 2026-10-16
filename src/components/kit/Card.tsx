@@ -34,7 +34,7 @@ export function PanelHeader({
         className,
       )}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 items-start gap-3">
         {icone ? (
           <span className="mt-0.5 text-muted-foreground">{icone}</span>
         ) : null}

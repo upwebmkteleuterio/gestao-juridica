@@ -40,6 +40,7 @@ import {
 } from "@/hooks";
 import { contarDiasUteis } from "@/lib/datas";
 import { formatarData, formatarDataHora } from "@/lib/format";
+import { somarDiasUteis } from "@/lib/prazos";
 import { useUsuarioAtual } from "@/hooks";
 
 export interface DetalhePublicacaoPanelProps {
@@ -102,8 +103,11 @@ export function DetalhePublicacaoPanel({
       : intimacao?.status_analise === "falha"
         ? { rotulo: "Falha na análise", variant: "danger" as const }
         : { rotulo: "Análise pendente", variant: "neutral" as const };
+  const publicacao = intimacao?.data_disponibilizacao
+    ? somarDiasUteis(intimacao.data_disponibilizacao, 1)
+    : null;
   const diasUteis = contarDiasUteis(
-    intimacao?.data_disponibilizacao,
+    publicacao,
     fatal || intimacao?.data_fatal_calculada,
   );
   const prazoDivergente = Boolean(
@@ -359,6 +363,10 @@ export function DetalhePublicacaoPanel({
                 <dd className="mt-1 font-medium tabular-nums">{formatarData(intimacao.data_disponibilizacao)}</dd>
               </div>
               <div>
+                <dt className="text-muted-foreground">Publicação (1º dia útil)</dt>
+                <dd className="mt-1 font-medium tabular-nums">{formatarData(publicacao)}</dd>
+              </div>
+              <div>
                 <dt className="text-muted-foreground">Capturada em</dt>
                 <dd className="mt-1 font-medium tabular-nums">{formatarDataHora(rawQuery.data?.criado_em)}</dd>
               </div>
@@ -426,7 +434,7 @@ export function DetalhePublicacaoPanel({
                 htmlFor="painel-fatal"
                 hint={
                   diasUteis !== null
-                    ? `${diasUteis} dias úteis após a disponibilização (aproximado, sem feriados).`
+                    ? `${diasUteis} dias úteis contados da publicação (${formatarData(publicacao)}), já descontando feriados nacionais.`
                     : "A fonte não indicou prazo — informe manualmente se houver."
                 }
               >

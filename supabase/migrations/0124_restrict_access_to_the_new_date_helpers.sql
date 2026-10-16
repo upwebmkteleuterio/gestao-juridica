@@ -1,0 +1,12 @@
+revoke all on function public.pascoa(integer) from public, anon;
+revoke all on function public.feriados_nacionais(integer) from public, anon;
+revoke all on function public.eh_dia_util(date) from public, anon;
+revoke all on function public.proximo_dia_util(date) from public, anon;
+revoke all on function public.somar_dias_uteis(date, integer) from public, anon;
+revoke all on function public.calcular_prazo_djen(date, integer) from public, anon;
+grant execute on function public.pascoa(integer) to authenticated, service_role;
+grant execute on function public.feriados_nacionais(integer) to authenticated, service_role;
+grant execute on function public.eh_dia_util(date) to authenticated, service_role;
+grant execute on function public.proximo_dia_util(date) to authenticated, service_role;
+grant execute on function public.somar_dias_uteis(date, integer) to authenticated, service_role;
+grant execute on function public.calcular_prazo_djen(date, integer) to authenticated, service_role;
