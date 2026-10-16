@@ -12,6 +12,7 @@ import type {
   PreviaDistribuicao,
   ResultadoAnaliseIA,
   ResultadoConsultaIntimacoes,
+  ResultadoDevolucao,
   ResultadoDistribuicao,
 } from "@/types";
 import { invocarFuncao, mensagemDeErro } from "./erros";
@@ -164,6 +165,12 @@ export const intimacoesService = {
     });
     if (error) throw new Error(mensagemDeErro(error));
     return data as unknown as ResultadoDistribuicao;
+  },
+
+  async devolverDistribuicao(advogadoId: ID): Promise<ResultadoDevolucao> {
+    const { data, error } = await supabase.rpc("devolver_distribuicao", { p_advogado_id: advogadoId });
+    if (error) throw new Error(mensagemDeErro(error));
+    return data as unknown as ResultadoDevolucao;
   },
 
   async enviarParaEsteira(params: { id: ID; acao_sugerida_ia: string; resumo_ia: string; data_fatal_calculada: string | null; advogado_id: ID }): Promise<Intimacao> {

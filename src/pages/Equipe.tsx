@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PauseCircle, Pencil, Plus, ShieldOff, Trash2 } from "lucide-react";
+import { PauseCircle, Pencil, Plus, ShieldOff, Trash2, Undo2 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -19,8 +19,11 @@ import { AdvogadoModal } from "@/components/equipe";
 import {
   useAcessoEquipe,
   useDefinirAcesso,
+  useDevolverDistribuicao,
   useExcluirMembro,
   useProdutividadeEquipe,
+  useRegistrarEvento,
+  useUsuarioAtual,
 } from "@/hooks";
 import { formatarOab } from "@/lib/format";
 import { ErroFuncao } from "@/services";
@@ -34,8 +37,12 @@ export default function Equipe() {
   const acessos = useAcessoEquipe();
   const definirAcesso = useDefinirAcesso();
   const excluir = useExcluirMembro();
+  const devolver = useDevolverDistribuicao();
+  const registrarEvento = useRegistrarEvento();
+  const usuario = useUsuarioAtual();
   const [selecionado, setSelecionado] = useState<AdvogadoCarga | null>(null);
   const [alternativaBloqueio, setAlternativaBloqueio] = useState<AdvogadoCarga | null>(null);
+  const [devolverSelecionado, setDevolverSelecionado] = useState<AdvogadoCarga | null>(null);
   const [mensagemExclusao, setMensagemExclusao] = useState("");
   const advogados = produtividade.data ?? [];
   const ativos = advogados.reduce((total, advogado) => total + Number(advogado.ativo_distribuicao), 0);
@@ -72,6 +79,35 @@ export default function Equipe() {
     if (!alternativaBloqueio) return;
     await alternarAcesso(alternativaBloqueio, false);
     setAlternativaBloqueio(null);
+  }
+
+  async function confirmarDevolucao() {
+    if (!devolverSelecionado) return;
+    try {
+      const resultado = await devolver.mutateAsync(devolverSelecionado.advogado_id);
+      try {
+        await registrarEvento.mutateAsync({
+          ator_id: usuario?.id ?? null,
+          entidade: "distribuicao",
+          entidade_id: resultado.intimacao_ids.join(","),
+          acao: "distribuicao_devolvida",
+          antes: null,
+          depois: `${resultado.devolvidas} devolvidas · ${devolverSelecionado.nome_completo}`,
+        });
+      } catch {
+        toast.warning("Devolução concluída, mas não foi possível registrar o histórico.");
+      }
+      if (resultado.devolvidas > 0) {
+        toast.success(`${resultado.devolvidas} publicações devolvidas à triagem.${resultado.mantidas > 0 ? ` ${resultado.mantidas} continuam com o advogado porque o trabalho já começou.` : ""}`);
+      } else if (resultado.mantidas > 0) {
+        toast.warning("Nenhuma publicação pôde voltar: o trabalho já começou em todas elas.");
+      } else {
+        toast.info("Este profissional não tem publicações distribuídas em fila.");
+      }
+      setDevolverSelecionado(null);
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível devolver a distribuição.");
+    }
   }
 
   return (
@@ -126,6 +162,7 @@ export default function Equipe() {
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="navy">{advogado.perfil === "admin" ? "Admin" : "Advogado"}</Badge>
                         <Button variant="secondary" size="sm" onClick={() => navigate(`/equipe/advogado/${advogado.advogado_id}`)}><Pencil className="h-3 w-3" aria-hidden="true" />Editar advogado</Button>
+                        {advogado.total_prazos > 0 ? <Button variant="secondary" size="sm" onClick={() => setDevolverSelecionado(advogado)}><Undo2 className="h-3 w-3" aria-hidden="true" />Devolver ao painel</Button> : null}
                         {acessoConhecido && acesso ? <Button variant="secondary" size="sm" disabled={definirAcesso.isPending} onClick={() => void alternarAcesso(advogado, !acesso.pode_entrar)}><ShieldOff className="h-3 w-3" aria-hidden="true" />{acesso.pode_entrar ? "Bloquear acesso" : "Liberar acesso"}</Button> : null}
                         <Button variant="danger" size="sm" onClick={() => { setMensagemExclusao(""); setSelecionado(advogado); }}><Trash2 className="h-3 w-3" aria-hidden="true" />Excluir</Button>
                       </div>
@@ -139,6 +176,19 @@ export default function Equipe() {
       </Panel>
 
       <AdvogadoModal open={modalAberto} advogadoId={pathname.startsWith("/equipe/advogado/") ? id ?? null : null} onClose={() => navigate("/equipe")} />
+
+      <ConfirmDialog
+        open={Boolean(devolverSelecionado)}
+        onClose={() => setDevolverSelecionado(null)}
+        onConfirm={() => void confirmarDevolucao()}
+        titulo="Devolver as intimações ao painel de gestor?"
+        descricao="As publicações distribuídas a este profissional voltam para a triagem sem responsável e as tarefas ainda não iniciadas saem da esteira. O que já saiu da fila (redação, revisão, protocolo ou concluído) permanece com o advogado. A análise da IA e a data sugerida não são alteradas."
+        textoConfirmar="Devolver ao painel"
+        variante="danger"
+        carregando={devolver.isPending}
+      >
+        <p className="text-[11px] text-muted-foreground">{devolverSelecionado?.nome_completo}</p>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={Boolean(selecionado)}

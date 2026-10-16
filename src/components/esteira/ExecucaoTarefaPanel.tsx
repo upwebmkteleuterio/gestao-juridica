@@ -218,6 +218,8 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
               <div><dt className="text-muted-foreground">Tribunal</dt><dd className="mt-1 font-medium">{tarefa.tribunal_sigla ?? "Manual"}</dd></div>
               <div><dt className="text-muted-foreground">Ação</dt><dd className="mt-1 font-medium">{tarefa.tipo_peca}</dd></div>
               <div><dt className="text-muted-foreground">Partes</dt><dd className="mt-1 font-medium">{tarefa.partes_resumo}</dd></div>
+              {tarefa.data_disponibilizacao ? <div><dt className="text-muted-foreground">Disponibilização</dt><dd className="mt-1 font-medium">{formatarData(tarefa.data_disponibilizacao)}</dd></div> : null}
+              {tarefa.capturada_em ? <div><dt className="text-muted-foreground">Capturada em</dt><dd className="mt-1 font-medium">{formatarDataHora(tarefa.capturada_em)}</dd></div> : null}
               {tarefa.data_ciencia ? <div><dt className="text-muted-foreground">Ciência</dt><dd className="mt-1 font-medium">{formatarData(tarefa.data_ciencia)}</dd></div> : null}
               <div className="col-span-2 flex flex-wrap items-center gap-2"><dt className="text-muted-foreground">Contagem regressiva</dt><dd><DeadlineBadge dataFatal={tarefa.data_fatal} rotulo={rotuloPrazo} /></dd></div>
             </dl>

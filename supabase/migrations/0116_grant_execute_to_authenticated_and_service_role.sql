@@ -1,0 +1,1 @@
+grant execute on function public.devolver_distribuicao(uuid) to authenticated, service_role;

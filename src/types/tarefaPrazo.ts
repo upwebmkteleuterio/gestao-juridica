@@ -32,6 +32,10 @@ export interface TarefaPrazo {
    * tarefa é automática e informado no cadastro quando é manual.
    */
   tribunal_sigla?: string | null;
+  /** Data de disponibilização no DJEN, derivada da intimação de origem. */
+  data_disponibilizacao?: DateOnly | null;
+  /** Momento em que o escritório ingeriu a publicação (criação da intimação). */
+  capturada_em?: ISODate | null;
   /** Data de ciência do prazo manual, persistida no banco. */
   data_ciencia?: DateOnly | null;
 }

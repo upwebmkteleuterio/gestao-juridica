@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useOverlay } from "@/hooks";
 import { cn } from "@/lib/utils";
 import { IconButton } from "./Button";
@@ -34,7 +35,9 @@ export function SlidePanel({
 
   if (!open) return null;
 
-  return (
+  /* Portal no body: o painel fica ancorado na viewport, sem depender do
+     elemento onde a tela foi renderizada. */
+  return createPortal(
     <div className="fixed inset-0 z-[70] overflow-hidden">
       <div
         className="absolute inset-0 animate-fade-in bg-navy-950/60"
@@ -77,6 +80,7 @@ export function SlidePanel({
           <footer className="border-t border-border px-7 py-5">{footer}</footer>
         ) : null}
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -18,7 +18,7 @@ import { criarRepositorioSupabase } from "./repositorioSupabase";
 
 export const ETAPAS_KANBAN: EtapaKanban[] = ["fila", "redacao", "revisao", "pronto_protocolo", "concluido"];
 const COLUNAS = "id, origem, intimacao_id, advogado_id, numero_processo, partes_resumo, tipo_peca, data_fatal, etapa_kanban, link_minuta, notas_internas, recibo_protocolo_url, data_ciencia, concluido_em, created_at, updated_at";
-const COLUNAS_EMBED = `${COLUNAS}, intimacoes(tribunal_sigla)`;
+const COLUNAS_EMBED = `${COLUNAS}, intimacoes(tribunal_sigla, data_disponibilizacao, created_at)`;
 const repositorio = criarRepositorioSupabase<TarefaPrazo, TarefaPrazoInput>({
   tabela: "tarefas_prazos",
   colunas: COLUNAS,
@@ -55,12 +55,21 @@ function ordenarPorFatal(a: TarefaPrazo, b: TarefaPrazo): number {
 }
 
 interface TarefaComIntimacao extends TarefaPrazo {
-  intimacoes?: { tribunal_sigla: string | null } | null;
+  intimacoes?: {
+    tribunal_sigla: string | null;
+    data_disponibilizacao: string | null;
+    created_at: string | null;
+  } | null;
 }
 
 function comTribunal(linha: TarefaComIntimacao): TarefaPrazo {
   const { intimacoes, ...tarefa } = linha;
-  return { ...normalizar(tarefa), tribunal_sigla: intimacoes?.tribunal_sigla ?? null };
+  return {
+    ...normalizar(tarefa),
+    tribunal_sigla: intimacoes?.tribunal_sigla ?? null,
+    data_disponibilizacao: intimacoes?.data_disponibilizacao ?? null,
+    capturada_em: intimacoes?.created_at ?? null,
+  };
 }
 
 export const tarefasPrazosService = {

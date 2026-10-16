@@ -23,3 +23,13 @@ export interface ResultadoDistribuicao extends PreviaDistribuicao {
   intimacao_ids: ID[];
   tarefa_ids: ID[];
 }
+
+/** Resultado da devolução de uma distribuição (desfazer a atribuição). */
+export interface ResultadoDevolucao {
+  advogado_id: ID;
+  devolvidas: number;
+  tarefas_removidas: number;
+  mantidas: number;
+  intimacao_ids: ID[];
+  devolvido_em: ISODate;
+}

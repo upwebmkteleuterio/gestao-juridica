@@ -350,6 +350,31 @@ export function DetalhePublicacaoPanel({
         </Alert>
       ) : (
         <div className="space-y-6">
+          {/* Datas-chave da publicação — leitura imediata, antes do parecer da IA */}
+          <section>
+            <p className="label-kit mb-3">Datas da publicação</p>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-sm border border-border p-4 text-[10px]">
+              <div>
+                <dt className="text-muted-foreground">Disponibilização (DJEN)</dt>
+                <dd className="mt-1 font-medium tabular-nums">{formatarData(intimacao.data_disponibilizacao)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Capturada em</dt>
+                <dd className="mt-1 font-medium tabular-nums">{formatarDataHora(rawQuery.data?.criado_em)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Prazo indicado no texto</dt>
+                <dd className="mt-1 font-medium">{intimacao.prazo_extraido_texto || "não identificado"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Prazo fatal sugerido</dt>
+                <dd className="mt-1 font-medium tabular-nums">{intimacao.data_fatal_calculada ? formatarData(intimacao.data_fatal_calculada) : "não identificado"}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <div className="border-t border-border" />
+
           {status === "triagem" ? (
             <Alert severidade="warning" titulo="Aguardando conferência humana">
               O prazo extraído pela IA permanece pendente até a validação. A

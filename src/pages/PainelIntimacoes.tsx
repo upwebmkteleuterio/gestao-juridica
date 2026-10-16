@@ -218,7 +218,25 @@ export default function PainelIntimacoes() {
     Boolean(buscaDebounced) ||
     Boolean(filtros.tribunal) ||
     Boolean(filtros.disponibilizacaoDe) ||
-    Boolean(filtros.disponibilizacaoAte);
+    Boolean(filtros.disponibilizacaoAte) ||
+    filtros.apenasMinhaPauta;
+  const partesRecorte = [
+    buscaDebounced.trim() ? `busca "${buscaDebounced.trim()}"` : null,
+    filtros.tribunal ? `tribunal ${filtros.tribunal}` : null,
+    filtros.disponibilizacaoDe || filtros.disponibilizacaoAte
+      ? `disponibilização ${
+          filtros.disponibilizacaoDe && filtros.disponibilizacaoAte
+            ? `${formatarData(filtros.disponibilizacaoDe)} a ${formatarData(filtros.disponibilizacaoAte)}`
+            : filtros.disponibilizacaoDe
+              ? `a partir de ${formatarData(filtros.disponibilizacaoDe)}`
+              : `até ${formatarData(filtros.disponibilizacaoAte)}`
+        }`
+      : null,
+    filtros.apenasMinhaPauta ? "minha pauta" : null,
+  ].filter((parte): parte is string => Boolean(parte));
+  const descricaoRecorte = partesRecorte.length
+    ? partesRecorte.join(" · ")
+    : "sem filtros — todas as pendentes do painel";
 
   return (
     <div className="space-y-6">
@@ -575,6 +593,7 @@ export default function PainelIntimacoes() {
         onClose={() => navigate("/painel")}
         intimacaoIds={loteIds}
         origem={selecionadas.length > 0 ? "selecao" : "filtro"}
+        recorte={descricaoRecorte}
         carregandoLote={pendentes.isLoading && selecionadas.length === 0}
         onConfirmado={() => {
           setSelecionadas([]);

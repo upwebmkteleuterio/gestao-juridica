@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useOverlay } from "@/hooks";
 import { cn } from "@/lib/utils";
 import { Button, IconButton } from "./Button";
@@ -31,7 +32,9 @@ export function Modal({
 
   if (!open) return null;
 
-  return (
+  /* Portal no body: o diálogo fica ancorado na viewport, sem depender do
+     elemento onde a tela foi renderizada. */
+  return createPortal(
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 animate-fade-in bg-navy-950/60"
@@ -75,6 +78,7 @@ export function Modal({
           </footer>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -160,6 +160,19 @@ export function useDistribuirLote() {
   });
 }
 
+export function useDevolverDistribuicao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (advogadoId: ID) => intimacoesService.devolverDistribuicao(advogadoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["tarefas-prazos"] });
+      queryClient.invalidateQueries({ queryKey: ["distribuicao"] });
+      queryClient.invalidateQueries({ queryKey: ["equipe"] });
+    },
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Ações da Tela 1.2                                                   */
 /* ------------------------------------------------------------------ */

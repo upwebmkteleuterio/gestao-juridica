@@ -1,0 +1,1 @@
+revoke all on function public.devolver_distribuicao(uuid) from public, anon;

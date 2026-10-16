@@ -30,6 +30,7 @@ export interface DistribuicaoModalProps {
   /** Lote a distribuir (seleção explícita ou pendentes do filtro). */
   intimacaoIds: ID[];
   origem: "selecao" | "filtro";
+  recorte?: string;
   carregandoLote?: boolean;
   onConfirmado: () => void;
 }
@@ -43,6 +44,7 @@ export function DistribuicaoModal({
   onClose,
   intimacaoIds,
   origem,
+  recorte,
   carregandoLote = false,
   onConfirmado,
 }: DistribuicaoModalProps) {
@@ -170,11 +172,13 @@ export function DistribuicaoModal({
               <strong className="mt-1 block text-4xl font-semibold leading-tight tracking-tight text-gold-400">
                 {carregandoLote ? "…" : total}
               </strong>
-              <p className="mt-2 text-[11px] text-white/60">
-                {origem === "selecao"
-                  ? "Itens selecionados manualmente na listagem."
-                  : "Todas as pendentes do filtro ativo."}
-              </p>
+              {origem === "selecao" ? (
+                <p className="mt-2 text-[11px] text-white/60">Itens selecionados manualmente na listagem.</p>
+              ) : (
+                <p className="mt-2 text-[11px] text-white/60">
+                  Todas as pendentes do filtro ativo{recorte ? ` · ${recorte}` : ""}
+                </p>
+              )}
             </div>
             {previa.data && previa.data.total > 0 ? (
               <p className="mt-4 text-[10px] text-white/55">
