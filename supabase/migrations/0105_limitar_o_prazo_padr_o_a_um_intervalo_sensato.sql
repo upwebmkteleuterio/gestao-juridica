@@ -1,0 +1,1 @@
+alter table public.configuracoes_sistema add constraint configuracoes_sistema_prazo_padrao_check check (prazo_padrao_dias_uteis is null or (prazo_padrao_dias_uteis >= 1 and prazo_padrao_dias_uteis <= 365))

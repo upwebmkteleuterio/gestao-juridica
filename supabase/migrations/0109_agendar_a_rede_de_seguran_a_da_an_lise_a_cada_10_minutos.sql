@@ -1,0 +1,1 @@
+select cron.alter_job(jobid, schedule => '*/10 * * * *') from cron.job where jobname = 'analisar-publicacoes-horario'

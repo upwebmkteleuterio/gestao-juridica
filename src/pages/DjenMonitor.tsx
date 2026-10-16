@@ -27,7 +27,7 @@ import {
   TableToolbar,
   TableWrap,
 } from "@/components/kit";
-import { CapturaModal, PayloadPanel, RoboConfigPanel } from "@/components/djen";
+import { CapturaModal, PayloadPanel, PrazoConfigPanel, RoboConfigPanel } from "@/components/djen";
 import {
   useAuditoriaDjen,
   useCapturasDjen,
@@ -189,6 +189,8 @@ export default function DjenMonitor() {
         </Panel>
         <RoboConfigPanel />
       </div>
+
+      <PrazoConfigPanel />
 
       <Panel>
         <TableToolbar

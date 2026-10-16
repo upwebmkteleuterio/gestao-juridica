@@ -1,0 +1,1 @@
+revoke all on function public.calcular_data_fatal(date, integer) from public, anon; grant execute on function public.calcular_data_fatal(date, integer) to authenticated, service_role

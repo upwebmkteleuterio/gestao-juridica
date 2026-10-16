@@ -1,0 +1,1 @@
+alter table public.configuracoes_sistema add column if not exists prazo_padrao_dias_uteis integer

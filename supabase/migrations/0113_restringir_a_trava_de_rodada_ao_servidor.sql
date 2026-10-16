@@ -1,0 +1,1 @@
+revoke all on function public.reivindicar_analise(integer) from public, anon, authenticated; revoke all on function public.liberar_analise() from public, anon, authenticated; grant execute on function public.reivindicar_analise(integer) to service_role; grant execute on function public.liberar_analise() to service_role

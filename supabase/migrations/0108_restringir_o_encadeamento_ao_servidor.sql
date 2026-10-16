@@ -1,0 +1,1 @@
+revoke all on function public.agendar_proxima_analise(integer) from public, anon, authenticated; grant execute on function public.agendar_proxima_analise(integer) to service_role

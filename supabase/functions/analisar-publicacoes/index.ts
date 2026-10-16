@@ -16,6 +16,7 @@ const MODELO_PADRAO = "deepseek-flash";
 const SEM_PRAZO = "não identificado";
 const LIMITE_PADRAO = 10;
 const LIMITE_MAXIMO = 20;
+const LIMITE_CADEIA = 200;
 const ORCAMENTO_MS = 100_000;
 const TAMANHO_MAXIMO_TEXTO = 20_000;
 
@@ -76,6 +77,14 @@ function dataOuNulo(valor: unknown) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(candidato)) return null;
   if (Number.isNaN(Date.parse(`${candidato}T00:00:00Z`))) return null;
   return new Date(`${candidato}T00:00:00Z`).toISOString().slice(0, 10) === candidato ? candidato : null;
+}
+
+function diasDoPrazo(texto: string) {
+  const semParenteses = texto.replace(/\([^)]*\)/g, " ");
+  const ocorrencia = semParenteses.match(/\b(\d{1,3})\s+dias?\b/i);
+  if (!ocorrencia) return null;
+  const dias = Number(ocorrencia[1]);
+  return Number.isInteger(dias) && dias >= 1 && dias <= 365 ? dias : null;
 }
 
 // Converte a resposta da IA em uma análise utilizável, sem aceitar prazo inventado.
@@ -153,17 +162,58 @@ serve(async (request) => {
 
   const rawId = textoDe(corpo.raw_id);
   if (rawId && !/^[0-9a-f-]{36}$/i.test(rawId)) return erro(400, "dados_invalidos", "Publicação inválida para análise.");
+  const cadeiaSolicitada = corpo.cadeia;
+  const cadeia = typeof cadeiaSolicitada === "number" && Number.isInteger(cadeiaSolicitada) && cadeiaSolicitada >= 0 ? cadeiaSolicitada : 0;
   const limiteSolicitado = Number(corpo.limite);
   const limite = rawId ? 1 : Math.min(LIMITE_MAXIMO, Math.max(1, Number.isFinite(limiteSolicitado) ? Math.trunc(limiteSolicitado) : LIMITE_PADRAO));
 
   const { data: configuracao, error: erroConfiguracao } = await admin.from("configuracoes_sistema")
-    .select("ia_modelo, ia_system_prompt").eq("id", 1).maybeSingle();
+    .select("ia_modelo, ia_system_prompt, prazo_padrao_dias_uteis").eq("id", 1).maybeSingle();
   if (erroConfiguracao) {
     log("Falha ao consultar a configuração da IA.");
     return erro(500, "erro_interno", "Não foi possível consultar a configuração da IA.");
   }
   const modelo = textoDe(configuracao?.ia_modelo) || MODELO_PADRAO;
   const prompt = garantirContratoJson(textoDe(configuracao?.ia_system_prompt) || PROMPT_PADRAO);
+
+  let travaReivindicada = false;
+  const liberarTrava = async () => {
+    if (!travaReivindicada) return;
+    try {
+      const { error: erroLiberacao } = await admin.rpc("liberar_analise");
+      if (erroLiberacao) log("Falha ao liberar a trava da rodada de análise.");
+      else travaReivindicada = false;
+    } catch {
+      log("Falha ao liberar a trava da rodada de análise.");
+    }
+  };
+
+  if (!rawId) {
+    try {
+      const { data: reivindicada, error: erroReivindicacao } = await admin.rpc("reivindicar_analise", { p_segundos: 240 });
+      if (erroReivindicacao) {
+        log("Falha ao reivindicar a trava da rodada de análise; seguindo sem trava.");
+      } else if (reivindicada === true) {
+        travaReivindicada = true;
+        log("Trava da rodada de análise reivindicada.");
+      } else {
+        log("Trava da rodada de análise já está ocupada.");
+        return responder(200, {
+          ok: true,
+          dados: {
+            processadas: 0,
+            sucessos: 0,
+            falhas: 0,
+            restantes: 0,
+            modelo,
+            mensagem: "Uma rodada de análise já está em andamento.",
+          },
+        });
+      }
+    } catch {
+      log("Falha ao reivindicar a trava da rodada de análise; seguindo sem trava.");
+    }
+  }
 
   let consulta = admin.from("intimacoes_djen_raw")
     .select("id, texto, numero_processo, data_disponibilizacao, sigla_tribunal, nome_orgao, tipo_documento");
@@ -173,9 +223,12 @@ serve(async (request) => {
   const { data: publicacoes, error: erroPublicacoes } = await consulta;
   if (erroPublicacoes) {
     log("Falha ao listar as publicações pendentes.");
+    await liberarTrava();
     return erro(500, "erro_interno", "Não foi possível listar as publicações para análise.");
   }
   if (!publicacoes?.length) {
+    if (!rawId) log("Encadeamento interrompido: nenhuma publicação processada com sucesso nesta rodada.");
+    await liberarTrava();
     return responder(200, { ok: true, dados: { processadas: 0, sucessos: 0, falhas: 0, resultados: [], mensagem: "Nenhuma publicação pendente de análise." } });
   }
 
@@ -266,13 +319,35 @@ serve(async (request) => {
 
     const duracao = Date.now() - marca;
     const status: "sucesso" | "falha" = analise ? "sucesso" : "falha";
+    let dataFatalCalculada = analise?.prazo_data ?? null;
+
+    if (analise && !analise.prazo_data) {
+      const diasDeclarados = diasDoPrazo(analise.prazo_texto);
+      const prazoPadrao = configuracao?.prazo_padrao_dias_uteis;
+      const dias = diasDeclarados ?? (typeof prazoPadrao === "number" && Number.isInteger(prazoPadrao) && prazoPadrao >= 1 && prazoPadrao <= 365 ? prazoPadrao : null);
+      if (dias !== null) {
+        try {
+          const { data, error } = await admin.rpc("calcular_data_fatal", {
+            p_data_base: linha.data_disponibilizacao,
+            p_dias: dias,
+          });
+          if (error) {
+            log(`Falha ao calcular data fatal sugerida para publicação ${linha.id}.`);
+          } else if (typeof data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(data)) {
+            dataFatalCalculada = data;
+          }
+        } catch {
+          log(`Falha ao calcular data fatal sugerida para publicação ${linha.id}.`);
+        }
+      }
+    }
 
     if (analise) {
       const { error: erroResultado } = await admin.from("intimacoes").update({
         resumo_ia: analise.resumo,
         acao_sugerida_ia: analise.acao_sugerida,
         prazo_extraido_texto: analise.prazo_texto,
-        data_fatal_calculada: analise.prazo_data,
+        data_fatal_calculada: dataFatalCalculada,
         trecho_fundamentador: analise.trecho_fundamentador,
         pendencias: analise.pendencias,
         status_analise: "sucesso",
@@ -299,7 +374,10 @@ serve(async (request) => {
     if (status !== statusFinal) log("Análise gravada com divergência de status.");
   }
 
-  if (!resultados.length) return erro(500, "erro_interno", "Não foi possível concluir a análise.");
+  if (!resultados.length) {
+    await liberarTrava();
+    return erro(500, "erro_interno", "Não foi possível concluir a análise.");
+  }
 
   const sucessos = resultados.filter((item) => item.status === "sucesso").length;
   const falhas = resultados.length - sucessos;
@@ -307,6 +385,33 @@ serve(async (request) => {
   const mensagem = falhas === 0
     ? `${sucessos} publicação(ões) analisada(s).`
     : `${sucessos} analisada(s) e ${falhas} com falha.`;
+
+  await liberarTrava();
+
+  if (rawId) {
+    log("Execução de publicação única; encadeamento desativado.");
+  } else if (cadeia >= LIMITE_CADEIA) {
+    log(`Encadeamento interrompido: limite de ${LIMITE_CADEIA} rodadas atingido.`);
+  } else if (sucessos === 0) {
+    log("Encadeamento interrompido: nenhuma publicação foi analisada com sucesso nesta rodada.");
+  } else {
+    const { count, error: erroPendentes } = await admin.from("intimacoes_djen_raw")
+      .select("id", { count: "exact", head: true })
+      .eq("status_analise_ia", "pendente");
+    if (erroPendentes) {
+      log("Encadeamento interrompido: falha ao contar publicações pendentes.");
+    } else if (!count || count <= 0) {
+      log("Encadeamento interrompido: não há publicações pendentes.");
+    } else {
+      try {
+        const { error: erroAgendamento } = await admin.rpc("agendar_proxima_analise", { p_cadeia: cadeia + 1 });
+        if (erroAgendamento) log("Falha ao enfileirar a próxima rodada de análise.");
+        else log(`Próxima rodada de análise enfileirada (cadeia ${cadeia + 1}).`);
+      } catch {
+        log("Falha ao enfileirar a próxima rodada de análise.");
+      }
+    }
+  }
 
   return responder(200, {
     ok: true,

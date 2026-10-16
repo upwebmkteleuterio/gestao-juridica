@@ -1,0 +1,1 @@
+create or replace function public.liberar_analise() returns void language sql security definer set search_path = '' as $funcao$ update public.configuracoes_sistema set analise_bloqueada_ate = null where id = 1 $funcao$

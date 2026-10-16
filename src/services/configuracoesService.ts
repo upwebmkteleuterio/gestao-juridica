@@ -2,13 +2,14 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ConfiguracaoSistema, ConfiguracaoSistemaInput } from "@/types";
 import { mensagemDeErro } from "./erros";
 
-const COLUNAS = "id, oabs_monitoradas, horario_cron_djen, ia_modelo, ia_system_prompt, updated_at";
+const COLUNAS = "id, oabs_monitoradas, horario_cron_djen, prazo_padrao_dias_uteis, ia_modelo, ia_system_prompt, updated_at";
 
 function normalizar(linha: ConfiguracaoSistema): ConfiguracaoSistema {
   return {
     ...linha,
     oabs_monitoradas: linha.oabs_monitoradas ?? [],
     horario_cron_djen: linha.horario_cron_djen ?? "",
+    prazo_padrao_dias_uteis: linha.prazo_padrao_dias_uteis ?? null,
     ia_modelo: linha.ia_modelo ?? "",
     ia_system_prompt: linha.ia_system_prompt ?? "",
     updated_at: linha.updated_at ?? "",

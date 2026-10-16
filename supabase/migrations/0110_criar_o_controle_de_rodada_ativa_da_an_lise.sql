@@ -1,0 +1,1 @@
+alter table public.configuracoes_sistema add column if not exists analise_bloqueada_ate timestamp with time zone
