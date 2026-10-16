@@ -1,0 +1,1 @@
+create index if not exists tarefas_arquivado_idx on public.tarefas_prazos (arquivado_em desc);

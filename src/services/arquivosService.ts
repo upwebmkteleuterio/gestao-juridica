@@ -21,6 +21,11 @@ export async function enviarComprovante(tarefaId: string, arquivo: File): Promis
   return caminho;
 }
 
+export async function removerComprovante(caminho: string): Promise<void> {
+  const { error } = await supabase.storage.from("recibos-protocolo").remove([caminho]);
+  if (error) throw new Error(mensagemDeErro(error));
+}
+
 export async function obterUrlComprovante(caminho: string): Promise<string> {
   const { data, error } = await supabase.storage
     .from("recibos-protocolo")

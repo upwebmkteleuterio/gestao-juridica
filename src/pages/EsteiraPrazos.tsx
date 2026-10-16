@@ -18,9 +18,14 @@ import {
   KanbanBoard,
   PrazoManualModal,
 } from "@/components/esteira";
-import { useAdvogados, useEsteira, useMoverEtapa, useUsuarioAtual } from "@/hooks";
+import { useAdvogados, useEsteira, useUsuarioAtual } from "@/hooks";
 import { useUiStore } from "@/store";
-import type { EtapaKanban, TarefaPrazo, UrgenciaEsteira } from "@/types";
+import type { EtapaKanban, ID, TarefaPrazo, UrgenciaEsteira } from "@/types";
+import { Archive } from "lucide-react";
+import { useState } from "react";
+import { ConfirmDialog, SegmentedControl } from "@/components/kit";
+import { ArquivadosTab } from "@/components/esteira";
+import { useArquivarTarefa, useRegistrarEvento, useReordenarKanban } from "@/hooks";
 
 const ROTULOS_ETAPA: Record<EtapaKanban, string> = {
   fila: "Fila de trabalho",
@@ -47,6 +52,9 @@ export default function EsteiraPrazos() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { id: tarefaId } = useParams<{ id: string }>();
+  const aba = useUiStore((estado) => estado.abaEsteira);
+  const setAbaEsteira = useUiStore((estado) => estado.setAbaEsteira);
+  const [tarefaParaArquivar, setTarefaParaArquivar] = useState<TarefaPrazo | null>(null);
 
   useEffect(() => {
     if (esteiraIniciada || !usuario) return;
@@ -63,24 +71,53 @@ export default function EsteiraPrazos() {
   );
   const esteira = useEsteira(consulta);
   const { data: advogados } = useAdvogados();
-  const mover = useMoverEtapa();
+  const reordenar = useReordenarKanban(consulta);
+  const arquivar = useArquivarTarefa();
+  const registrarEvento = useRegistrarEvento();
   const resumo = esteira.data?.resumo;
   const semTarefas = esteira.data?.total === 0 && !esteira.isFetching && !esteira.isError;
 
-  function soltar(tarefa: TarefaPrazo, etapa: EtapaKanban) {
-    if (etapa === tarefa.etapa_kanban) return;
-    if (etapa === "concluido" && !tarefa.recibo_protocolo_url) {
+  /**
+   * Solta o card na coluna de destino: a posição vertical escolhida no arraste
+   * define a ordem manual da coluna (e a troca de etapa, quando houver).
+   */
+  function soltar(tarefa: TarefaPrazo, etapa: EtapaKanban, idsOrdenados: ID[]) {
+    if (etapa === "concluido" && !tarefa.recibo_protocolo_url && tarefa.etapa_kanban !== "concluido") {
       toast.warning("Anexe o comprovante de protocolo para concluir a tarefa.");
       navigate(`/esteira/tarefa/${tarefa.id}`);
       return;
     }
-    mover.mutate(
-      { id: tarefa.id, etapa },
+    reordenar.mutate(
+      { etapa, ids: idsOrdenados },
       {
-        onSuccess: () => toast.success(`Tarefa movida para ${ROTULOS_ETAPA[etapa]}.`),
+        onSuccess: () => {
+          if (etapa !== tarefa.etapa_kanban) {
+            toast.success(`Tarefa movida para ${ROTULOS_ETAPA[etapa]}.`);
+          }
+        },
         onError: (erro) => toast.error(erro instanceof Error ? erro.message : "Não foi possível mover a tarefa."),
       },
     );
+  }
+
+  async function confirmarArquivamento() {
+    if (!tarefaParaArquivar) return;
+    const tarefa = tarefaParaArquivar;
+    try {
+      const arquivada = await arquivar.mutateAsync(tarefa.id);
+      await registrarEvento.mutateAsync({
+        entidade: "tarefa",
+        entidade_id: tarefa.id,
+        ator_id: usuario?.id ?? null,
+        acao: "tarefa_arquivada",
+        antes: JSON.stringify({ arquivado_em: tarefa.arquivado_em, ordem_kanban: tarefa.ordem_kanban }),
+        depois: JSON.stringify({ arquivado_em: arquivada.arquivado_em, ordem_kanban: arquivada.ordem_kanban }),
+      });
+      toast.success("Tarefa arquivada. Ela está na aba Arquivados.");
+      setTarefaParaArquivar(null);
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível arquivar a tarefa.");
+    }
   }
 
   const acaoVazia = filtro.urgencia !== "todos" ? (
@@ -111,6 +148,13 @@ export default function EsteiraPrazos() {
         }
       />
 
+      <SegmentedControl
+        valor={aba}
+        opcoes={[{ valor: "pipeline", rotulo: "Pipeline" }, { valor: "arquivados", rotulo: "Arquivados" }]}
+        onChange={(valor) => setAbaEsteira(valor === "arquivados" ? "arquivados" : "pipeline")}
+        ariaLabel="Visão da esteira"
+      />
+
       <Panel>
         <PanelHeader titulo="Controles de visualização" />
         <div className="space-y-4 p-5">
@@ -127,6 +171,7 @@ export default function EsteiraPrazos() {
                 ))}
               </Select>
             </FormField>
+            <div className={aba === "pipeline" ? "contents" : "hidden"}>
             <div className="flex flex-wrap gap-2" aria-label="Filtros de urgência">
               {FILTROS_URGENCIA.map((item) => (
                 <Button
@@ -142,13 +187,17 @@ export default function EsteiraPrazos() {
                 </Button>
               ))}
             </div>
+            </div>
           </div>
+          <div className={aba === "pipeline" ? "contents" : "hidden"}>
           <p className="text-[10px] text-muted-foreground">
             Faixas: crítico &lt; 48h; semana = fatais nos próximos 7 dias; em dia = sem urgência no horizonte.
           </p>
+          </div>
         </div>
       </Panel>
 
+      <div hidden={aba !== "pipeline"}>
       {esteira.isFetching && !esteira.isLoading ? (
         <Alert severidade="info" titulo="Atualizando a esteira">
           Os dados estão sendo sincronizados; o quadro anterior permanece visível.
@@ -173,8 +222,13 @@ export default function EsteiraPrazos() {
           onRetry={() => void esteira.refetch()}
           onAbrir={(id) => navigate(`/esteira/tarefa/${id}`)}
           onSoltar={soltar}
+          onArquivar={setTarefaParaArquivar}
         />
       )}
+      </div>
+      <div hidden={aba !== "arquivados"}>
+        <ArquivadosTab responsavelId={filtro.responsavelId} advogados={advogados ?? []} />
+      </div>
 
       <ExecucaoTarefaPanel
         tarefaId={tarefaId ?? null}
@@ -184,6 +238,21 @@ export default function EsteiraPrazos() {
         open={pathname === "/esteira/novo-prazo"}
         onClose={() => navigate("/esteira")}
       />
+      <ConfirmDialog
+        open={Boolean(tarefaParaArquivar)}
+        onClose={() => setTarefaParaArquivar(null)}
+        onConfirm={() => void confirmarArquivamento()}
+        titulo="Arquivar tarefa"
+        descricao="O card sairá do quadro e passará a aparecer na aba Arquivados. Você poderá restaurá-lo quando quiser."
+        textoConfirmar="Arquivar tarefa"
+        variante="primary"
+        carregando={arquivar.isPending || registrarEvento.isPending}
+      >
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <Archive className="h-4 w-4" aria-hidden="true" />
+          {tarefaParaArquivar?.numero_processo}
+        </div>
+      </ConfirmDialog>
     </div>
   );
 }

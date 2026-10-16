@@ -1,0 +1,1 @@
+alter table public.tarefas_prazos add column arquivado_em timestamp with time zone;

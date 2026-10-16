@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, FileCheck2, Paperclip, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, ExternalLink, FileCheck2, Paperclip, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -7,6 +7,8 @@ import {
   Badge,
   Button,
   Checkbox,
+  ConfirmDialog,
+  CopiarButton,
   DeadlineBadge,
   EtapaBadge,
   FormField,
@@ -16,8 +18,8 @@ import {
   SlidePanel,
   Textarea,
 } from "@/components/kit";
-import { ETAPAS_KANBAN, enviarComprovante, obterUrlComprovante } from "@/services";
-import { useAdvogados, useAtualizarTarefaPrazo, useEventosPorEntidade, useRegistrarEvento, useTarefaPrazo, useUsuarioAtual } from "@/hooks";
+import { ETAPAS_KANBAN, enviarComprovante, obterUrlComprovante, removerComprovante } from "@/services";
+import { useAdvogados, useArquivarTarefa, useAtualizarTarefaPrazo, useDesarquivarTarefa, useEventosPorEntidade, useRegistrarEvento, useTarefaPrazo, useUsuarioAtual } from "@/hooks";
 import { formatarData, formatarDataHora } from "@/lib/format";
 import { horasAte } from "@/lib/datas";
 import type { EtapaKanban } from "@/types";
@@ -48,6 +50,8 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
   const { data: advogados } = useAdvogados();
   const eventosQuery = useEventosPorEntidade(tarefaId ?? undefined);
   const atualizar = useAtualizarTarefaPrazo();
+  const arquivar = useArquivarTarefa();
+  const desarquivar = useDesarquivarTarefa();
   const registrarEvento = useRegistrarEvento();
   const inputArquivo = useRef<HTMLInputElement>(null);
   const [linkMinuta, setLinkMinuta] = useState("");
@@ -58,6 +62,7 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
   const [enviandoComprovante, setEnviandoComprovante] = useState(false);
   const [confirmacaoExterna, setConfirmacaoExterna] = useState(false);
   const [erroProtocolo, setErroProtocolo] = useState(false);
+  const [confirmarArquivamento, setConfirmarArquivamento] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
 
   useEffect(() => {
@@ -93,6 +98,14 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
 
   async function selecionarArquivo(arquivo?: File) {
     if (!arquivo || !tarefa) return;
+    if (arquivo.type !== "application/pdf" && !arquivo.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("O comprovante deve estar em formato PDF.");
+      return;
+    }
+    if (arquivo.size > 10 * 1024 * 1024) {
+      toast.error("O comprovante deve ter no máximo 10 MB.");
+      return;
+    }
     setEnviandoComprovante(true);
     try {
       const caminho = await enviarComprovante(tarefa.id, arquivo);
@@ -147,6 +160,13 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
           recibo_protocolo_url: recibo || null,
         },
       });
+      if (tarefa.recibo_protocolo_url && !recibo) {
+        try {
+          await removerComprovante(tarefa.recibo_protocolo_url);
+        } catch {
+          toast.warning("A tarefa foi salva, mas não foi possível excluir o comprovante do armazenamento.");
+        }
+      }
       await registrarEvento.mutateAsync({
         entidade: "tarefa",
         entidade_id: tarefa.id,
@@ -172,6 +192,37 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
     }
   }
 
+  async function arquivarTarefa() {
+    if (!tarefa) return;
+    try {
+      const resultado = await arquivar.mutateAsync(tarefa.id);
+      await registrarEvento.mutateAsync({
+        entidade: "tarefa", entidade_id: tarefa.id, ator_id: usuario?.id ?? null, acao: "tarefa_arquivada",
+        antes: JSON.stringify({ arquivado_em: tarefa.arquivado_em, ordem_kanban: tarefa.ordem_kanban }),
+        depois: JSON.stringify({ arquivado_em: resultado.arquivado_em, ordem_kanban: resultado.ordem_kanban }),
+      });
+      toast.success("Tarefa arquivada. Ela está na aba Arquivados.");
+      setConfirmarArquivamento(false);
+      onClose();
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível arquivar a tarefa.");
+    }
+  }
+
+  async function restaurarTarefa() {
+    if (!tarefa) return;
+    try {
+      await desarquivar.mutateAsync(tarefa.id);
+      await registrarEvento.mutateAsync({
+        entidade: "tarefa", entidade_id: tarefa.id, ator_id: usuario?.id ?? null, acao: "tarefa_desarquivada",
+        antes: JSON.stringify({ arquivado_em: tarefa.arquivado_em }), depois: JSON.stringify({ arquivado_em: null }),
+      });
+      toast.success("Tarefa restaurada no quadro.");
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível restaurar a tarefa.");
+    }
+  }
+
   const carregando = tarefaQuery.isLoading;
   const falha = tarefaQuery.isError || (!carregando && !tarefa);
 
@@ -186,10 +237,13 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
           <EtapaBadge etapa={tarefa.etapa_kanban} />
           {tarefa.tribunal_sigla ? <Badge variant="neutral">{tarefa.tribunal_sigla}</Badge> : <Badge variant="gold">Manual</Badge>}
           <Badge variant="navy">{tarefa.origem === "djen" ? "DJEN" : "Manual"}</Badge>
+          {tarefa.arquivado_em ? <Badge variant="neutral">Arquivado</Badge> : null}
         </div>
       ) : null}
       footer={tarefa ? (
         <div className="flex flex-wrap gap-2">
+          {tarefa.etapa_kanban === "concluido" && !tarefa.arquivado_em ? <Button variant="secondary" onClick={() => setConfirmarArquivamento(true)}><Archive className="h-3.5 w-3.5" aria-hidden="true" />Arquivar tarefa</Button> : null}
+          {tarefa.arquivado_em ? <Button variant="secondary" loading={desarquivar.isPending || registrarEvento.isPending} onClick={() => void restaurarTarefa()}><ArchiveRestore className="h-3.5 w-3.5" aria-hidden="true" />Restaurar no quadro</Button> : null}
           <Button variant="primary" loading={atualizar.isPending || registrarEvento.isPending || enviandoComprovante} onClick={salvar}>
             Salvar e atualizar tarefa
           </Button>
@@ -214,13 +268,15 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
           <section>
             <h3 className="mb-3 text-[12px] font-semibold">Resumo da demanda</h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-sm border border-border p-4 text-[10px]">
-              <div><dt className="text-muted-foreground">Processo</dt><dd className="mt-1 font-medium tabular-nums">{tarefa.numero_processo}</dd></div>
+              <div><dt className="text-muted-foreground">Processo</dt><dd className="mt-1 flex items-center gap-1 font-medium tabular-nums">{tarefa.numero_processo}<CopiarButton valor={tarefa.numero_processo} rotulo="Copiar número do processo" mensagem="Número do processo copiado." /></dd></div>
               <div><dt className="text-muted-foreground">Tribunal</dt><dd className="mt-1 font-medium">{tarefa.tribunal_sigla ?? "Manual"}</dd></div>
               <div><dt className="text-muted-foreground">Ação</dt><dd className="mt-1 font-medium">{tarefa.tipo_peca}</dd></div>
               <div><dt className="text-muted-foreground">Partes</dt><dd className="mt-1 font-medium">{tarefa.partes_resumo}</dd></div>
               {tarefa.data_disponibilizacao ? <div><dt className="text-muted-foreground">Disponibilização</dt><dd className="mt-1 font-medium">{formatarData(tarefa.data_disponibilizacao)}</dd></div> : null}
               {tarefa.capturada_em ? <div><dt className="text-muted-foreground">Capturada em</dt><dd className="mt-1 font-medium">{formatarDataHora(tarefa.capturada_em)}</dd></div> : null}
               {tarefa.data_ciencia ? <div><dt className="text-muted-foreground">Ciência</dt><dd className="mt-1 font-medium">{formatarData(tarefa.data_ciencia)}</dd></div> : null}
+              {tarefa.dias_prazo ? <div><dt className="text-muted-foreground">Prazo informado</dt><dd className="mt-1 font-medium">{tarefa.dias_prazo} {tarefa.dias_prazo === 1 ? "dia" : "dias"} {tarefa.tipo_contagem_prazo === "corridos" ? "corridos" : "úteis"}</dd></div> : null}
+              {tarefa.concluido_em ? <div><dt className="text-muted-foreground">Protocolado em</dt><dd className="mt-1 font-medium">{formatarDataHora(tarefa.concluido_em)}</dd></div> : null}
               <div className="col-span-2 flex flex-wrap items-center gap-2"><dt className="text-muted-foreground">Contagem regressiva</dt><dd><DeadlineBadge dataFatal={tarefa.data_fatal} rotulo={rotuloPrazo} /></dd></div>
             </dl>
             {tarefa.intimacao_id ? (
@@ -301,6 +357,16 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
           </section>
         </div>
       ) : null}
+      <ConfirmDialog
+        open={confirmarArquivamento}
+        onClose={() => setConfirmarArquivamento(false)}
+        onConfirm={() => void arquivarTarefa()}
+        titulo="Arquivar tarefa"
+        descricao="O card sairá do quadro e passará a aparecer na aba Arquivados. Você poderá restaurá-lo quando quiser."
+        textoConfirmar="Arquivar tarefa"
+        variante="primary"
+        carregando={arquivar.isPending || registrarEvento.isPending}
+      />
     </SlidePanel>
   );
 }

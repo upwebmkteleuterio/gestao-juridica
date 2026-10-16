@@ -18,7 +18,8 @@ export interface KanbanBoardProps {
   atualizando?: boolean;
   onRetry: () => void;
   onAbrir: (id: ID) => void;
-  onSoltar: (tarefa: TarefaPrazo, etapa: EtapaKanban) => void;
+  onSoltar: (tarefa: TarefaPrazo, etapa: EtapaKanban, idsOrdenados: ID[]) => void;
+  onArquivar: (tarefa: TarefaPrazo) => void;
 }
 
 const CONFIGURACAO: Record<EtapaKanban, { titulo: string; descricao: string }> = {
@@ -26,7 +27,7 @@ const CONFIGURACAO: Record<EtapaKanban, { titulo: string; descricao: string }> =
   redacao: { titulo: "Em redação", descricao: "Peça em elaboração" },
   revisao: { titulo: "Em revisão", descricao: "Aguardando validação" },
   pronto_protocolo: { titulo: "Pronto p/ protocolo", descricao: "Aprovada para submissão" },
-  concluido: { titulo: "Protocolado", descricao: "Comprovante arquivado" },
+  concluido: { titulo: "Protocolado", descricao: "Protocolado · arquive para limpar o quadro" },
 };
 
 export function KanbanBoard({
@@ -38,9 +39,11 @@ export function KanbanBoard({
   onRetry,
   onAbrir,
   onSoltar,
+  onArquivar,
 }: KanbanBoardProps) {
   const [idArrastado, setIdArrastado] = useState<ID | null>(null);
   const [etapaAlvo, setEtapaAlvo] = useState<EtapaKanban | null>(null);
+  const [alvo, setAlvo] = useState<{ etapa: EtapaKanban; indice: number } | null>(null);
 
   if (erro) {
     return (
@@ -71,6 +74,7 @@ export function KanbanBoard({
             onDragLeave={(evento) => {
               if (!evento.currentTarget.contains(evento.relatedTarget as Node | null)) {
                 setEtapaAlvo(null);
+                setAlvo(null);
               }
             }}
             onDrop={(evento) => {
@@ -79,9 +83,19 @@ export function KanbanBoard({
               const tarefa = tarefaId
                 ? colunas.find((item) => item.tarefas.some((t) => t.id === tarefaId))?.tarefas.find((item) => item.id === tarefaId)
                 : undefined;
-              if (tarefa) onSoltar(tarefa, etapa);
+              if (tarefa) {
+                const ids = itens.filter((item) => item.id !== tarefa.id).map((item) => item.id);
+                const bruto = alvo?.etapa === etapa ? alvo.indice : itens.length;
+                const origem = itens.findIndex((item) => item.id === tarefa.id);
+                const indiceInsercao = origem >= 0 && origem < bruto ? bruto - 1 : bruto;
+                ids.splice(Math.max(0, Math.min(indiceInsercao, ids.length)), 0, tarefa.id);
+                if (origem !== indiceInsercao || tarefa.etapa_kanban !== etapa) {
+                  onSoltar(tarefa, etapa, ids);
+                }
+              }
               setIdArrastado(null);
               setEtapaAlvo(null);
+              setAlvo(null);
             }}
             className={`w-[276px] shrink-0 transition-colors xl:w-auto xl:min-w-0 xl:basis-0 xl:flex-1 ${etapaAlvo === etapa ? "border-info bg-info-bg/40" : ""} ${atualizando ? "opacity-75" : ""}`}
           >
@@ -91,7 +105,21 @@ export function KanbanBoard({
               descricao={config.descricao}
               acoes={<Badge variant="neutral" className="shrink-0">{carregando ? "—" : itens.length}</Badge>}
             />
-            <div className="min-h-40 space-y-3 p-3">
+            <div
+              className="min-h-40 space-y-3 p-3"
+              onDragOver={(evento) => {
+                evento.preventDefault();
+                const cartoes = Array.from(evento.currentTarget.querySelectorAll("[data-card]")) as HTMLElement[];
+                const encontrado = cartoes.findIndex((el) => {
+                  const caixa = el.getBoundingClientRect();
+                  return evento.clientY < caixa.top + caixa.height / 2;
+                });
+                const indice = encontrado === -1 ? cartoes.length : encontrado;
+                setAlvo((atual) =>
+                  (atual && atual.etapa === etapa && atual.indice === indice ? atual : { etapa, indice }),
+                );
+              }}
+            >
               {carregando ? (
                 <div className="space-y-3" aria-label="Carregando tarefas">
                   <Skeleton className="h-28" />
@@ -104,20 +132,38 @@ export function KanbanBoard({
                 </p>
               ) : (
                 itens.map((tarefa) => (
+                  <div key={tarefa.id} data-card className="relative">
+                    {alvo?.etapa === etapa && alvo.indice === itens.findIndex((item) => item.id === tarefa.id) ? (
+                      <span aria-hidden="true" className="pointer-events-none absolute -top-2 left-0 right-0 z-20 flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-info" />
+                        <span className="h-0.5 flex-1 rounded-full bg-info" />
+                      </span>
+                    ) : null}
                   <KanbanCard
                     key={tarefa.id}
                     tarefa={tarefa}
                     nomeAdvogado={advogados.find((item) => item.id === tarefa.advogado_id)?.nome_completo}
                     arrastando={idArrastado === tarefa.id}
                     onAbrir={() => onAbrir(tarefa.id)}
+                    onArquivar={() => onArquivar(tarefa)}
                     onDragStart={() => setIdArrastado(tarefa.id)}
                     onDragEnd={() => {
                       setIdArrastado(null);
                       setEtapaAlvo(null);
+                      setAlvo(null);
                     }}
                   />
+                  </div>
                 ))
               )}
+              <div className="relative h-0">
+                {alvo?.etapa === etapa && alvo.indice === itens.length ? (
+                  <span aria-hidden="true" className="pointer-events-none absolute -top-2 left-0 right-0 flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-info" />
+                    <span className="h-0.5 flex-1 rounded-full bg-info" />
+                  </span>
+                ) : null}
+              </div>
             </div>
           </Panel>
         );

@@ -4,6 +4,7 @@ import { slaDeDataFatal } from "@/lib/sla";
 import type {
   AdvogadoCarga,
   CargaAdvogado,
+  ConsultaArquivados,
   ConsultaEsteira,
   EtapaKanban,
   ID,
@@ -17,7 +18,7 @@ import { mensagemDeErro } from "./erros";
 import { criarRepositorioSupabase } from "./repositorioSupabase";
 
 export const ETAPAS_KANBAN: EtapaKanban[] = ["fila", "redacao", "revisao", "pronto_protocolo", "concluido"];
-const COLUNAS = "id, origem, intimacao_id, advogado_id, numero_processo, partes_resumo, tipo_peca, data_fatal, etapa_kanban, link_minuta, notas_internas, recibo_protocolo_url, data_ciencia, concluido_em, created_at, updated_at";
+const COLUNAS = "id, origem, intimacao_id, advogado_id, numero_processo, partes_resumo, tipo_peca, data_fatal, etapa_kanban, link_minuta, notas_internas, recibo_protocolo_url, data_ciencia, concluido_em, ordem_kanban, arquivado_em, dias_prazo, tipo_contagem_prazo, created_at, updated_at";
 const COLUNAS_EMBED = `${COLUNAS}, intimacoes(tribunal_sigla, data_disponibilizacao, created_at)`;
 const repositorio = criarRepositorioSupabase<TarefaPrazo, TarefaPrazoInput>({
   tabela: "tarefas_prazos",
@@ -52,6 +53,12 @@ function ordenarPorFatal(a: TarefaPrazo, b: TarefaPrazo): number {
   const fatalB = b.data_fatal ?? "9999-12-31";
   if (fatalA !== fatalB) return fatalA.localeCompare(fatalB);
   return a.tipo_peca.localeCompare(b.tipo_peca);
+}
+
+function ordenarColuna(a: TarefaPrazo, b: TarefaPrazo): number {
+  const ordemA = a.ordem_kanban ?? Number.MAX_SAFE_INTEGER;
+  const ordemB = b.ordem_kanban ?? Number.MAX_SAFE_INTEGER;
+  return ordemA - ordemB || ordenarPorFatal(a, b);
 }
 
 interface TarefaComIntimacao extends TarefaPrazo {
@@ -98,7 +105,7 @@ export const tarefasPrazosService = {
   },
 
   async listarEsteira(consulta: ConsultaEsteira = {}): Promise<ResultadoEsteira> {
-    let query = supabase.from("tarefas_prazos").select(COLUNAS_EMBED);
+    let query = supabase.from("tarefas_prazos").select(COLUNAS_EMBED).is("arquivado_em", null);
     if (consulta.responsavelId) query = query.eq("advogado_id", consulta.responsavelId);
     const { data, error } = await query;
     if (error) throw new Error(mensagemDeErro(error));
@@ -113,12 +120,47 @@ export const tarefasPrazosService = {
     };
     const urgencia = consulta.urgencia ?? "todos";
     const filtradas = urgencia === "todos" ? base : ativas.filter((tarefa) => correspondeUrgencia(tarefa, urgencia));
-    const ordenadas = [...filtradas].sort(ordenarPorFatal);
+    const colunas = ETAPAS_KANBAN.map((etapa) => ({
+      etapa,
+      tarefas: filtradas.filter((tarefa) => tarefa.etapa_kanban === etapa).sort(ordenarColuna),
+    }));
     return {
-      colunas: ETAPAS_KANBAN.map((etapa) => ({ etapa, tarefas: ordenadas.filter((tarefa) => tarefa.etapa_kanban === etapa) })),
+      colunas,
       resumo,
-      total: ordenadas.length,
+      total: filtradas.length,
     };
+  },
+
+  async reordenarKanban(etapa: EtapaKanban, ids: ID[]): Promise<void> {
+    const { error } = await supabase.rpc("reordenar_kanban", { p_etapa: etapa, p_ids: ids });
+    if (error) throw new Error(mensagemDeErro(error));
+  },
+
+  async arquivar(id: ID): Promise<TarefaPrazo> {
+    const { data, error } = await supabase.from("tarefas_prazos")
+      .update({ arquivado_em: new Date().toISOString(), ordem_kanban: null })
+      .eq("id", id).select(COLUNAS).single();
+    if (error) throw new Error(mensagemDeErro(error));
+    return normalizar(data as unknown as TarefaPrazo);
+  },
+
+  async desarquivar(id: ID): Promise<TarefaPrazo> {
+    const { data, error } = await supabase.from("tarefas_prazos")
+      .update({ arquivado_em: null }).eq("id", id).select(COLUNAS).single();
+    if (error) throw new Error(mensagemDeErro(error));
+    return normalizar(data as unknown as TarefaPrazo);
+  },
+
+  async listarArquivadas(consulta: ConsultaArquivados): Promise<TarefaPrazo[]> {
+    let query = supabase.from("tarefas_prazos").select(COLUNAS_EMBED)
+      .not("arquivado_em", "is", null)
+      .gte("arquivado_em", `${consulta.de}T00:00:00-03:00`)
+      .lte("arquivado_em", `${consulta.ate}T23:59:59-03:00`)
+      .order("arquivado_em", { ascending: false });
+    if (consulta.responsavelId) query = query.eq("advogado_id", consulta.responsavelId);
+    const { data, error } = await query;
+    if (error) throw new Error(mensagemDeErro(error));
+    return ((data ?? []) as unknown as TarefaComIntimacao[]).map(comTribunal);
   },
 
   async listarPorAdvogado(advogado_id: ID): Promise<TarefaPrazo[]> {
@@ -166,7 +208,7 @@ export const tarefasPrazosService = {
 
   async obterProdutividadeEquipe(): Promise<AdvogadoCarga[]> {
     const [advogados, tarefas] = await Promise.all([
-      supabase.from("advogados").select("id, nome_completo, email_corporativo, oab_numero, oab_uf, perfil, ativo_distribuicao, cargo"),
+      supabase.from("advogados").select("id, nome_completo, email_corporativo, oab_numero, oab_uf, perfil, ativo_distribuicao, cargo, data_ingresso"),
       supabase.from("tarefas_prazos").select(COLUNAS),
     ]);
     if (advogados.error) throw new Error(mensagemDeErro(advogados.error));
@@ -184,6 +226,7 @@ export const tarefasPrazosService = {
         perfil: advogado.perfil,
         ativo_distribuicao: advogado.ativo_distribuicao,
         cargo: advogado.cargo,
+        data_ingresso: advogado.data_ingresso,
         total_prazos: abertas.length,
         criticos_48h: abertas.filter((tarefa) => slaDeDataFatal(tarefa.data_fatal).critico).length,
         concluidos_mes: proprias.filter((tarefa) => tarefa.etapa_kanban === "concluido").length,

@@ -1,7 +1,8 @@
-import { CalendarClock } from "lucide-react";
+import { Archive, CalendarClock } from "lucide-react";
 import {
   Badge,
   DeadlineBadge,
+  IconButton,
   PessoaTag,
 } from "@/components/kit";
 import { formatarData } from "@/lib/format";
@@ -15,6 +16,7 @@ export interface KanbanCardProps {
   onAbrir: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
+  onArquivar?: () => void;
 }
 
 const BORDA_SLA = {
@@ -31,11 +33,13 @@ export function KanbanCard({
   onAbrir,
   onDragStart,
   onDragEnd,
+  onArquivar,
 }: KanbanCardProps) {
   const sigla = tarefa.tribunal_sigla;
   const tone = slaDeDataFatal(tarefa.data_fatal).tone;
 
   return (
+    <div className="relative group">
     <button
       type="button"
       draggable
@@ -72,6 +76,20 @@ export function KanbanCard({
         </span>
       </div>
     </button>
+      {tarefa.etapa_kanban === "concluido" && onArquivar ? (
+        <IconButton
+          type="button"
+          variant="secondary"
+          size="icon-sm"
+          aria-label="Arquivar tarefa"
+          title="Arquivar tarefa"
+          className="absolute right-2 top-2 z-10 transition-opacity opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+          onClick={onArquivar}
+        >
+          <Archive className="h-3.5 w-3.5" aria-hidden="true" />
+        </IconButton>
+      ) : null}
+    </div>
   );
 }
 

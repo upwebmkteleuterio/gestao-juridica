@@ -13,6 +13,28 @@ export function hojeISO(fuso = "America/Sao_Paulo"): string {
   return formatador.format(new Date());
 }
 
+/** Soma dias a uma data pura YYYY-MM-DD sem depender do fuso local. */
+export function somarDias(dia: string, dias: number): string {
+  const data = new Date(`${dia}T12:00:00Z`);
+  data.setUTCDate(data.getUTCDate() + dias);
+  return data.toISOString().slice(0, 10);
+}
+
+/** Retorna o dia de um instante ISO no fuso indicado; entradas inválidas preservam sua parte de data. */
+export function diaISO(valor?: string | null, fuso = "America/Sao_Paulo"): string {
+  if (!valor) return "";
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return valor.slice(0, 10);
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: fuso,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(data);
+  const valores = Object.fromEntries(partes.map((parte) => [parte.type, parte.value]));
+  return `${valores.year}-${valores.month}-${valores.day}`;
+}
+
 /**
  * Horas restantes até o fim do dia da data fatal (negativo = já vencido).
  * Base do cronômetro regressivo exibido na execução da tarefa (Tela 2.1).

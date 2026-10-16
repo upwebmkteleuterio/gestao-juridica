@@ -73,4 +73,6 @@ export interface AdvogadoCarga extends ProdutividadeEquipe {
   ativo_distribuicao: boolean;
   /** Cargo persistido na tabela de advogados. */
   cargo?: string;
+  /** Data de ingresso na banca, exibida no card do Painel da Equipe. */
+  data_ingresso?: DateOnly;
 }

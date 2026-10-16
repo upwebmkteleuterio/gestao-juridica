@@ -1,0 +1,1 @@
+alter table public.tarefas_prazos add constraint tarefas_prazos_dias_prazo_check check (dias_prazo is null or dias_prazo > 0);

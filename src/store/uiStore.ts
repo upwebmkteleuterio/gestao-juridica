@@ -14,12 +14,15 @@ export interface FiltroEsteira {
   urgencia: UrgenciaEsteira;
 }
 
+export type AbaEsteira = "pipeline" | "arquivados";
+
 interface UiState {
   /* Preferências persistidas */
   tema: Tema;
   sidebarRecolhida: boolean;
   filtrosPainel: FiltroIntimacoes;
   filtroEsteira: FiltroEsteira;
+  abaEsteira: AbaEsteira;
   criterioDistribuicao: CriterioDistribuicao;
   scrollPorRota: Record<string, number>;
   rascunhoPrazoManual: Record<string, unknown>;
@@ -39,6 +42,7 @@ interface UiState {
   setFiltrosPainel: (filtros: Partial<FiltroIntimacoes>) => void;
   limparFiltrosPainel: () => void;
   setFiltroEsteira: (filtro: Partial<FiltroEsteira>) => void;
+  setAbaEsteira: (aba: AbaEsteira) => void;
   setCriterioDistribuicao: (criterio: CriterioDistribuicao) => void;
   registrarScroll: (rota: string, posicao: number) => void;
   setRascunhoPrazoManual: (rascunho: Record<string, unknown>) => void;
@@ -81,6 +85,7 @@ export const useUiStore = create<UiState>()(
       sidebarRecolhida: false,
       filtrosPainel: FILTROS_INICIAIS,
       filtroEsteira: { responsavelId: null, urgencia: "todos" },
+      abaEsteira: "pipeline",
       criterioDistribuicao: "igualitario",
       scrollPorRota: {},
       rascunhoPrazoManual: {},
@@ -98,6 +103,7 @@ export const useUiStore = create<UiState>()(
       limparFiltrosPainel: () => set({ filtrosPainel: FILTROS_INICIAIS }),
       setFiltroEsteira: (filtro) =>
         set({ filtroEsteira: { ...get().filtroEsteira, ...filtro } }),
+      setAbaEsteira: (abaEsteira) => set({ abaEsteira }),
       setCriterioDistribuicao: (criterioDistribuicao) =>
         set({ criterioDistribuicao }),
       registrarScroll: (rota, posicao) =>
@@ -117,6 +123,7 @@ export const useUiStore = create<UiState>()(
         sidebarRecolhida: estado.sidebarRecolhida,
         filtrosPainel: estado.filtrosPainel,
         filtroEsteira: estado.filtroEsteira,
+        abaEsteira: estado.abaEsteira,
         criterioDistribuicao: estado.criterioDistribuicao,
         scrollPorRota: estado.scrollPorRota,
         rascunhoPrazoManual: estado.rascunhoPrazoManual,
@@ -131,6 +138,7 @@ export const useUiStore = create<UiState>()(
           ...estadoAtual,
           ...(salvo ?? {}),
           filtroEsteira: normalizarFiltroEsteira(filtroSalvo),
+          abaEsteira: salvo?.abaEsteira === "arquivados" ? "arquivados" : "pipeline",
           esteiraIniciada: formatoAntigo ? false : salvo?.esteiraIniciada ?? estadoAtual.esteiraIniciada,
         };
       },

@@ -1,0 +1,1 @@
+alter table public.tarefas_prazos add constraint tarefas_prazos_tipo_contagem_check check (tipo_contagem_prazo is null or tipo_contagem_prazo in ('uteis', 'corridos'));

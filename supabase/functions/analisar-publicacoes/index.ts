@@ -112,7 +112,7 @@ function interpretarResposta(bruto: unknown): Analise {
 }
 
 serve(async (request) => {
-  if (request.method === "OPTIONS") return new Response("", { status: 204, headers: corsHeaders });
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (request.method !== "POST") return erro(400, "metodo_invalido", "Método não permitido.");
 
   const url = Deno.env.get("SUPABASE_URL");

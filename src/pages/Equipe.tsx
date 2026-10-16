@@ -25,7 +25,7 @@ import {
   useRegistrarEvento,
   useUsuarioAtual,
 } from "@/hooks";
-import { formatarOab } from "@/lib/format";
+import { formatarData, formatarOab } from "@/lib/format";
 import { ErroFuncao } from "@/services";
 import type { AdvogadoCarga } from "@/types";
 
@@ -146,6 +146,7 @@ export default function Equipe() {
                       <div className="min-w-0 space-y-1 border-t border-border pt-3">
                         <p className="text-[11px] font-medium">{formatarOab(advogado.oab_numero, advogado.oab_uf)}</p>
                         <p className="truncate text-[10px] text-muted-foreground" title={advogado.email_corporativo}>{advogado.email_corporativo}</p>
+                        {advogado.data_ingresso ? <p className="text-[10px] text-muted-foreground">Na equipe desde {formatarData(advogado.data_ingresso)}</p> : null}
                       </div>
 
                       <div className="flex flex-wrap gap-2 border-t border-border pt-3">

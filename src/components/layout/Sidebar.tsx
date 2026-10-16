@@ -77,8 +77,6 @@ export function Sidebar(
                         className="h-[86px] w-[152px] object-contain" />
                 </div>
                 <div className="flex shrink-0 items-center gap-2.5 px-3 py-5">
-                    <span
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-gold-400">MG</span>
                     <div>
                         <strong className="block text-[12px] text-white">Gestão jurídica</strong>
                         <small className="block text-[10px] text-white/45">Espaço de trabalho do escritório

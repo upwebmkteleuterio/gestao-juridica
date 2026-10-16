@@ -9,6 +9,9 @@ import type {
   ConsultaEsteira,
   EtapaKanban,
   TarefaPrazoInput,
+  ConsultaArquivados,
+  ID,
+  ResultadoEsteira,
 } from "@/types";
 
 export const tarefasKeys = {
@@ -23,7 +26,29 @@ export const tarefasKeys = {
   produtividade: ["tarefas-prazos", "produtividade"] as const,
   esteira: (consulta: ConsultaEsteira) =>
     ["tarefas-prazos", "esteira", consulta] as const,
+  arquivados: (consulta: ConsultaArquivados) =>
+    ["tarefas-prazos", "arquivados", consulta] as const,
 };
+
+export function reordenarLocalmente(
+  atual: ResultadoEsteira,
+  etapa: EtapaKanban,
+  ids: ID[],
+): ResultadoEsteira {
+  const coluna = atual.colunas.find((item) => item.etapa === etapa);
+  if (!coluna) return atual;
+  const porId = new Map(coluna.tarefas.map((tarefa) => [tarefa.id, tarefa]));
+  const tarefas = ids.flatMap((id, indice) => {
+    const tarefa = porId.get(id);
+    return tarefa ? [{ ...tarefa, ordem_kanban: indice }] : [];
+  });
+  return {
+    ...atual,
+    colunas: atual.colunas.map((item) =>
+      item.etapa === etapa ? { ...item, tarefas } : item,
+    ),
+  };
+}
 
 export function useTarefasPrazos() {
   return useQuery({
@@ -37,6 +62,15 @@ export function useEsteira(consulta: ConsultaEsteira) {
   return useQuery({
     queryKey: tarefasKeys.esteira(consulta),
     queryFn: () => tarefasPrazosService.listarEsteira(consulta),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useArquivadas(consulta: ConsultaArquivados) {
+  return useQuery({
+    queryKey: tarefasKeys.arquivados(consulta),
+    queryFn: () => tarefasPrazosService.listarArquivadas(consulta),
+    enabled: Boolean(consulta.de && consulta.ate && consulta.de <= consulta.ate),
     placeholderData: keepPreviousData,
   });
 }
@@ -126,5 +160,40 @@ export function useMoverEtapa() {
     mutationFn: ({ id, etapa }: { id: string; etapa: EtapaKanban }) =>
       tarefasPrazosService.moverEtapa(id, etapa),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: tarefasKeys.all }),
+  });
+}
+
+export function useArquivarTarefa() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: ID) => tarefasPrazosService.arquivar(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: tarefasKeys.all }),
+  });
+}
+
+export function useDesarquivarTarefa() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: ID) => tarefasPrazosService.desarquivar(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: tarefasKeys.all }),
+  });
+}
+
+export function useReordenarKanban(consulta: ConsultaEsteira) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ etapa, ids }: { etapa: EtapaKanban; ids: ID[] }) =>
+      tarefasPrazosService.reordenarKanban(etapa, ids),
+    onMutate: async ({ etapa, ids }) => {
+      await queryClient.cancelQueries({ queryKey: tarefasKeys.all });
+      const chave = tarefasKeys.esteira(consulta);
+      const snapshot = queryClient.getQueryData<ResultadoEsteira>(chave);
+      if (snapshot) queryClient.setQueryData(chave, reordenarLocalmente(snapshot, etapa, ids));
+      return { snapshot, chave };
+    },
+    onError: (_erro, _variaveis, contexto) => {
+      if (contexto?.snapshot) queryClient.setQueryData(contexto.chave, contexto.snapshot);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: tarefasKeys.all }),
   });
 }

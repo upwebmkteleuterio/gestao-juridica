@@ -148,6 +148,8 @@ export function PrazoManualModal({ open, onClose }: PrazoManualModalProps) {
         concluido_em: null,
         tribunal_sigla: campos.tribunal.trim() || null,
         data_ciencia: campos.data_ciencia || null,
+        dias_prazo: Number(campos.dias) || null,
+        tipo_contagem_prazo: campos.tipo_contagem,
       });
       toast.success("Prazo manual cadastrado na fila da esteira.");
       limparRascunho();

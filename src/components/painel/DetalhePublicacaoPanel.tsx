@@ -370,6 +370,12 @@ export function DetalhePublicacaoPanel({
                 <dt className="text-muted-foreground">Capturada em</dt>
                 <dd className="mt-1 font-medium tabular-nums">{formatarDataHora(rawQuery.data?.criado_em)}</dd>
               </div>
+              {intimacao.distribuido_em ? (
+                <div>
+                  <dt className="text-muted-foreground">Distribuída em</dt>
+                  <dd className="mt-1 font-medium tabular-nums">{formatarDataHora(intimacao.distribuido_em)}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt className="text-muted-foreground">Prazo indicado no texto</dt>
                 <dd className="mt-1 font-medium">{intimacao.prazo_extraido_texto || "não identificado"}</dd>

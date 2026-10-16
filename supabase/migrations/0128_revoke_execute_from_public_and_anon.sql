@@ -1,0 +1,1 @@
+revoke execute on function public.reordenar_kanban(public.etapa_kanban, uuid[]) from public, anon;

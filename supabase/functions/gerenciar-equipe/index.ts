@@ -29,7 +29,7 @@ function conflitoBanco(error: { code?: string; message?: string }) {
 }
 
 serve(async (request) => {
-  if (request.method === "OPTIONS") return new Response("", { status: 204, headers: corsHeaders });
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (request.method !== "POST") return erro(405, "metodo_invalido", "Método não permitido.");
 
   const authorization = request.headers.get("Authorization");

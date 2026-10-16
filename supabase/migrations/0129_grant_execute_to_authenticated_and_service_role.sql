@@ -1,0 +1,1 @@
+grant execute on function public.reordenar_kanban(public.etapa_kanban, uuid[]) to authenticated, service_role;

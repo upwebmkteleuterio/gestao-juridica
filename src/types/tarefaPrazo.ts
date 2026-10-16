@@ -1,3 +1,4 @@
+import type { TipoContagemPrazo } from "@/lib/prazos";
 import type {
   DateOnly,
   EtapaKanban,
@@ -26,6 +27,14 @@ export interface TarefaPrazo {
   concluido_em: ISODate | null;
   created_at: ISODate;
   updated_at: ISODate;
+  /** Posição manual do card na coluna; null = ainda não reordenado. */
+  ordem_kanban: number | null;
+  /** Momento em que saiu do quadro para a lista de arquivados. */
+  arquivado_em: ISODate | null;
+  /** Prazo em dias informado no cadastro manual (vazio nas tarefas do DJEN). */
+  dias_prazo: number | null;
+  /** Regra de contagem usada no cálculo da data fatal do prazo manual. */
+  tipo_contagem_prazo: TipoContagemPrazo | null;
   /**
    * Campo auxiliar de apresentação (não persistido no banco): sigla do
    * tribunal exibida no card da esteira. Derivado da intimação quando a
@@ -42,8 +51,15 @@ export interface TarefaPrazo {
 
 export type TarefaPrazoInput = Omit<
   TarefaPrazo,
-  "id" | "created_at" | "updated_at"
+  "id" | "created_at" | "updated_at" | "ordem_kanban" | "arquivado_em"
 >;
+
+/** Filtros da lista de tarefas arquivadas (datas puras YYYY-MM-DD). */
+export interface ConsultaArquivados {
+  de: string;
+  ate: string;
+  responsavelId?: ID | null;
+}
 
 /** Pílulas de urgência dos controles superiores da Esteira (Tela 2). */
 export type UrgenciaEsteira =
