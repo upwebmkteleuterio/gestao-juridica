@@ -21,7 +21,7 @@ const TAMANHO_MAXIMO_TEXTO = 20_000;
 
 const PROMPT_PADRAO = [
   "Você é assistente jurídico de um escritório de advocacia brasileiro.",
-  "Leia a publicação do Diário de Justiça Eletrônico Nacional (DJEN) e responda SOMENTE um objeto JSON, sem nenhum texto fora do JSON, com exatamente estes campos:",
+  "Leia a publicação do Diário de Justiça Eletrônico Nacional (DJEN) e responda SOMENTE um objeto json, sem nenhum texto fora do json, com exatamente estes campos:",
   '{"resumo": "o que o juízo determinou, em no máximo 3 frases",',
   ' "acao_sugerida": "próxima providência prática do escritório, no imperativo",',
   ' "prazo_texto": "prazo mencionado no texto, como aparece; use exatamente \\"não identificado\\" quando o texto não indicar prazo",',
@@ -30,6 +30,13 @@ const PROMPT_PADRAO = [
   ' "pendencias": ["informações ou documentos que faltam para cumprir a determinação"]}',
   "Regras: nunca invente prazo nem data. Não afirme nada que não esteja escrito na publicação.",
 ].join("\n");
+
+const CONTRATO_SAIDA = "A resposta deve ser exclusivamente um objeto json válido, sem texto fora dele, contendo exatamente estas seis chaves: resumo, acao_sugerida, prazo_texto, prazo_data, trecho_fundamentador e pendencias.";
+
+// A API exige 'json' no prompt para aceitar response_format json_object, e o prompt editável do escritório pode não declarar as chaves lidas pelo código; por isso, o contrato é sempre acrescentado.
+function garantirContratoJson(prompt: string) {
+  return `${prompt}\n\n${CONTRATO_SAIDA}`;
+}
 
 type LinhaBruta = {
   id: string;
@@ -156,7 +163,7 @@ serve(async (request) => {
     return erro(500, "erro_interno", "Não foi possível consultar a configuração da IA.");
   }
   const modelo = textoDe(configuracao?.ia_modelo) || MODELO_PADRAO;
-  const prompt = textoDe(configuracao?.ia_system_prompt) || PROMPT_PADRAO;
+  const prompt = garantirContratoJson(textoDe(configuracao?.ia_system_prompt) || PROMPT_PADRAO);
 
   let consulta = admin.from("intimacoes_djen_raw")
     .select("id, texto, numero_processo, data_disponibilizacao, sigla_tribunal, nome_orgao, tipo_documento");
