@@ -17,8 +17,9 @@
 3. Perfis de processo são colaborativos: todos os usuários autenticados podem ver e operar os dados compartilhados conforme as políticas do banco. Não se implementa isolamento por `advogado_id`.
 4. Controles administrativos, gestão de usuários e credenciais do sistema são exclusivos de `admin`.
 5. Nenhum usuário anônimo pode acessar dados. Grants e RLS são necessários em conjunto para todas as tabelas/views expostas pelo Data API.
-6. Nenhum dado de exemplo vai para o banco; os mocks existentes são exclusivamente dados da interface nesta etapa.
+6. Não existem dados de exemplo no projeto; todo dado exibido vem do banco.
 7. A chave `service_role` nunca é distribuída ao navegador.
+8. O bucket privado `recibos-protocolo` permite leitura e escrita apenas a usuários autenticados, sem acesso anônimo.
 
 ## Tabelas e regras de acesso
 

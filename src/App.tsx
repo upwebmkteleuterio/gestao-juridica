@@ -9,7 +9,6 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
 import RedefinirSenha from "./pages/RedefinirSenha";
-import Styleguide from "./pages/Styleguide";
 import NotFound from "./pages/NotFound";
 import PainelIntimacoes from "./pages/PainelIntimacoes";
 import EsteiraPrazos from "./pages/EsteiraPrazos";
@@ -42,7 +41,6 @@ const App = () => (
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
-            <Route path="/styleguide" element={<Styleguide />} />
             <Route path="/painel" element={<PainelIntimacoes />} />
             <Route path="/painel/distribuicao" element={<PainelIntimacoes />} />
             <Route path="/painel/publicacao/:id" element={<PainelIntimacoes />} />

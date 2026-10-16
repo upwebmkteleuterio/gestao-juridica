@@ -1,0 +1,1 @@
+create policy "recibos_protocolo_remocao_autenticada" on storage.objects for delete to authenticated using (bucket_id = 'recibos-protocolo')

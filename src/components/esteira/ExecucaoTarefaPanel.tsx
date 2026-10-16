@@ -16,7 +16,7 @@ import {
   SlidePanel,
   Textarea,
 } from "@/components/kit";
-import { ETAPAS_KANBAN } from "@/services";
+import { ETAPAS_KANBAN, enviarComprovante, obterUrlComprovante } from "@/services";
 import { useAdvogados, useAtualizarTarefaPrazo, useEventosPorEntidade, useRegistrarEvento, useTarefaPrazo, useUsuarioAtual } from "@/hooks";
 import { formatarData, formatarDataHora } from "@/lib/format";
 import { horasAte } from "@/lib/datas";
@@ -55,6 +55,7 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
   const [etapa, setEtapa] = useState<EtapaKanban>("fila");
   const [recibo, setRecibo] = useState("");
   const [nomeArquivo, setNomeArquivo] = useState("");
+  const [enviandoComprovante, setEnviandoComprovante] = useState(false);
   const [confirmacaoExterna, setConfirmacaoExterna] = useState(false);
   const [erroProtocolo, setErroProtocolo] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
@@ -90,17 +91,28 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
       ? "Prazo vencido"
       : `${horasRestantes}h restantes`;
 
-  function selecionarArquivo(arquivo?: File) {
-    if (!arquivo) return;
-    const slug = arquivo.name
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") || "comprovante.pdf";
-    setRecibo(`https://storage.exemplo.com/recibos/${slug}`);
-    setNomeArquivo(arquivo.name);
-    setErroProtocolo(false);
+  async function selecionarArquivo(arquivo?: File) {
+    if (!arquivo || !tarefa) return;
+    setEnviandoComprovante(true);
+    try {
+      const caminho = await enviarComprovante(tarefa.id, arquivo);
+      setRecibo(caminho);
+      setNomeArquivo(arquivo.name);
+      setErroProtocolo(false);
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível enviar o comprovante.");
+    } finally {
+      setEnviandoComprovante(false);
+    }
+  }
+
+  async function abrirComprovante() {
+    try {
+      const url = await obterUrlComprovante(recibo);
+      window.open(url, "_blank", "noopener");
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível abrir o comprovante.");
+    }
   }
 
   async function salvar() {
@@ -178,10 +190,10 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
       ) : null}
       footer={tarefa ? (
         <div className="flex flex-wrap gap-2">
-          <Button variant="primary" loading={atualizar.isPending || registrarEvento.isPending} onClick={salvar}>
+          <Button variant="primary" loading={atualizar.isPending || registrarEvento.isPending || enviandoComprovante} onClick={salvar}>
             Salvar e atualizar tarefa
           </Button>
-          <Button variant="secondary" onClick={onClose} disabled={atualizar.isPending || registrarEvento.isPending}>
+          <Button variant="secondary" onClick={onClose} disabled={atualizar.isPending || registrarEvento.isPending || enviandoComprovante}>
             Fechar sem salvar
           </Button>
         </div>
@@ -230,15 +242,15 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
               </Select>
             </FormField>
             <FormField label="Comprovante de protocolo" htmlFor="tarefa-comprovante">
-              <input ref={inputArquivo} id="tarefa-comprovante" type="file" accept="application/pdf" className="sr-only" onChange={(evento) => selecionarArquivo(evento.target.files?.[0])} />
-              <Button type="button" variant="secondary" onClick={() => inputArquivo.current?.click()}>
+              <input ref={inputArquivo} id="tarefa-comprovante" type="file" accept="application/pdf" className="sr-only" onChange={(evento) => { const arquivo = evento.target.files?.[0]; evento.target.value = ""; void selecionarArquivo(arquivo); }} />
+              <Button type="button" variant="secondary" loading={enviandoComprovante} onClick={() => inputArquivo.current?.click()}>
                 <Paperclip className="h-3.5 w-3.5" aria-hidden="true" />
                 Anexar comprovante (PDF)
               </Button>
               {recibo ? (
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]">
                   <FileCheck2 className="h-3.5 w-3.5 text-success" aria-hidden="true" />
-                  {nomeArquivo ? <span>{nomeArquivo}</span> : <a href={recibo} target="_blank" rel="noreferrer" className="text-info underline">Comprovante anexado</a>}
+                  {nomeArquivo ? <span>{nomeArquivo}</span> : <Button type="button" variant="link" size="sm" onClick={abrirComprovante}>Abrir comprovante</Button>}
                   <Button type="button" variant="ghost" size="sm" onClick={() => { setRecibo(""); setNomeArquivo(""); }} aria-label="Remover comprovante">
                     <Trash2 className="h-3 w-3" aria-hidden="true" /> Remover
                   </Button>

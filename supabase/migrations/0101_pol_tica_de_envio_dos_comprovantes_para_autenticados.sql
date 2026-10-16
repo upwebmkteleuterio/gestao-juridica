@@ -1,0 +1,1 @@
+create policy "recibos_protocolo_envio_autenticado" on storage.objects for insert to authenticated with check (bucket_id = 'recibos-protocolo')

@@ -7,3 +7,4 @@ export * from "./intimacoesService";
 export * from "./tarefasPrazosService";
 export * from "./configuracoesService";
 export * from "./eventosAuditoriaService";
+export * from "./arquivosService";

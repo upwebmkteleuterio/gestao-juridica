@@ -1,0 +1,1 @@
+create policy "recibos_protocolo_leitura_autenticada" on storage.objects for select to authenticated using (bucket_id = 'recibos-protocolo')

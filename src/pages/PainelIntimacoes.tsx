@@ -297,7 +297,7 @@ export default function PainelIntimacoes() {
       <Panel>
         <PanelHeader
           titulo="Filtros rápidos"
-          descricao="Busca, tribunal e período são processados na consulta ao banco simulado."
+          descricao="Busca, tribunal e período são aplicados sobre as publicações capturadas."
           acoes={
             <SegmentedControl
               valor={filtros.apenasMinhaPauta ? "minha" : "todas"}
@@ -565,7 +565,7 @@ export default function PainelIntimacoes() {
 
       {lista.isFetching && !lista.isLoading ? (
         <Alert severidade="info" titulo="Atualizando o recorte">
-          Consultando o banco simulado com os filtros e a página atuais…
+          Consultando as publicações com os filtros e a página atuais…
         </Alert>
       ) : null}
 
