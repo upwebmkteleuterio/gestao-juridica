@@ -61,22 +61,21 @@ export default function Login() {
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
-      <section className="relative hidden flex-col justify-between overflow-hidden bg-navy-950 p-12 lg:flex">
+    <div className="grid min-h-screen grid-rows-[auto_1fr] lg:grid-cols-[1.05fr_1fr] lg:grid-rows-1">
+      <section className="relative flex flex-col overflow-hidden bg-navy-950 px-6 pb-6 pt-7 lg:justify-between lg:p-12">
         <img src="/assets/auth-pattern.png" alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.16]" />
-        <img src="/assets/logo-magalhaes-gomes.png" alt="Magalhães & Gomes Advogados" className="relative h-[92px] w-[164px] object-contain object-left" />
-        <div className="relative max-w-lg">
+        <img src="/assets/logo-magalhaes-gomes.png" alt="Magalhães & Gomes Advogados" className="relative h-11 w-[92px] object-contain object-left lg:h-[92px] lg:w-[164px]" />
+        <div className="relative mt-4 lg:mt-0 lg:max-w-lg">
           <p className="eyebrow text-gold-500">Operações jurídicas</p>
-          <h1 className="mt-4 text-white">Clareza para decidir.<br />Controle para avançar.</h1>
-          <p className="mt-5 text-[13px] leading-relaxed text-white/60">Acompanhe publicações, prazos e a operação jurídica do escritório em um único ambiente.</p>
-          <img src="/assets/balanca-animada.svg" alt="Balança da justiça entre documentos e uma lupa" width={420} height={500} className="mt-8 h-auto w-full max-w-sm" />
+          <h1 className="mt-4 hidden text-white lg:block">Clareza para decidir.<br />Controle para avançar.</h1>
+          <p className="mt-5 hidden text-[13px] leading-relaxed text-white/60 lg:block">Acompanhe publicações, prazos e a operação jurídica do escritório em um único ambiente.</p>
+          <img src="/assets/balanca-animada.svg" alt="Balança da justiça entre documentos e uma lupa" width={420} height={500} className="mx-auto mt-3 h-auto w-full max-w-[178px] lg:mx-0 lg:mt-8 lg:max-w-sm" />
         </div>
-        <p className="relative text-[10px] text-white/35">Magalhães & Gomes Advogados</p>
+        <p className="relative hidden text-[10px] text-white/35 lg:block">Magalhães & Gomes Advogados</p>
       </section>
 
-      <section className="flex items-center justify-center bg-background px-5 py-10 sm:px-10">
-        <div className="w-full max-w-md">
-          <img src="/assets/logo-magalhaes-gomes.png" alt="Magalhães & Gomes Advogados" className="mb-8 h-16 w-28 rounded bg-navy-950 object-contain p-1.5 lg:hidden" />
+      <section className="flex items-center justify-center bg-background px-5 py-8 sm:px-10 sm:py-10">
+        <div className="w-full max-w-md animate-rise-in lg:animate-none">
           <p className="eyebrow text-gold-600 dark:text-gold-400">Acesso restrito</p>
           <h2 className="mt-2 text-2xl">Entrar no sistema</h2>
           <p className="mt-2 text-[12px] text-muted-foreground">Acesse com seu e-mail corporativo e sua senha.</p>
