@@ -140,7 +140,9 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.2s ease-out",
-        "slide-in-right": "slide-in-right 0.25s ease-out",
+        /* Entrada do painel lateral: percurso contínuo com desaceleração longa
+           no fim e sem overshoot — chega suave e assenta sem quicar. */
+        "slide-in-right": "slide-in-right 0.4s cubic-bezier(0.32,0.72,0,1)",
         "rise-in": "rise-in 0.35s ease-out both",
       },
     },

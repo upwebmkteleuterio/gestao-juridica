@@ -37,7 +37,10 @@ export function useOverlay(
     };
     document.addEventListener("keydown", aoTeclar);
 
-    ref.current?.focus();
+    /* preventScroll: o painel ainda está deslocado para fora da tela quando
+       recebe o foco; sem isso o navegador rola o contêiner que o recorta e
+       atropela a animação de entrada. */
+    ref.current?.focus({ preventScroll: true });
 
     return () => {
       document.removeEventListener("keydown", aoTeclar);
