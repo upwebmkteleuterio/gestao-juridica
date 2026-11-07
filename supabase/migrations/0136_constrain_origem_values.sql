@@ -1,0 +1,1 @@
+alter table public.intimacoes add constraint intimacoes_origem_check check (origem in ('djen', 'manual'))

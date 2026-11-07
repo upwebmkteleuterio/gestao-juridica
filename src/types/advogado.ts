@@ -71,6 +71,7 @@ export interface AdvogadoCarga extends ProdutividadeEquipe {
   oab_uf: string;
   perfil: PerfilUsuario;
   ativo_distribuicao: boolean;
+  oculto_da_equipe: boolean;
   /** Cargo persistido na tabela de advogados. */
   cargo?: string;
   /** Data de ingresso na banca, exibida no card do Painel da Equipe. */

@@ -80,6 +80,13 @@ export function mascararCnj(valor: string): string {
   return saida;
 }
 
+/** Exibe números CNJ completos com máscara e preserva formatos legados. */
+export function formatarNumeroProcesso(valor?: string | null): string {
+  if (!valor) return "—";
+  const digitos = valor.replace(/\D/g, "");
+  return digitos.length === 20 ? mascararCnj(digitos) : valor;
+}
+
 /** O número CNJ é válido quando possui os 20 dígitos exigidos. */
 export function cnjValido(valor: string): boolean {
   return valor.replace(/\D/g, "").length === 20;

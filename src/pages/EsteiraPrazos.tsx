@@ -19,6 +19,7 @@ import {
   PrazoManualModal,
 } from "@/components/esteira";
 import { useAdvogados, useAdvogadosVisiveis, useEsteira, useUsuarioAtual } from "@/hooks";
+import { formatarNumeroProcesso } from "@/lib/format";
 import { useUiStore } from "@/store";
 import type { EtapaKanban, ID, TarefaPrazo, UrgenciaEsteira } from "@/types";
 import { Archive } from "lucide-react";
@@ -251,7 +252,7 @@ export default function EsteiraPrazos() {
       >
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <Archive className="h-4 w-4" aria-hidden="true" />
-          {tarefaParaArquivar?.numero_processo}
+          {formatarNumeroProcesso(tarefaParaArquivar?.numero_processo)}
         </div>
       </ConfirmDialog>
     </div>

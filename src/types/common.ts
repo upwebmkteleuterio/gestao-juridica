@@ -11,6 +11,9 @@ export type DateOnly = string;
 /** Perfil de acesso do sistema (single-tenant colaborativo). */
 export type PerfilUsuario = "admin" | "advogado";
 
+/** Origem de uma intimação exibida no painel. */
+export type OrigemIntimacao = "djen" | "manual";
+
 /** Status do processamento da IA sobre o payload bruto do DJEN. */
 export type StatusAnaliseIA = "pendente" | "sucesso" | "falha";
 

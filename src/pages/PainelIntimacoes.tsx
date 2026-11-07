@@ -4,6 +4,7 @@ import {
   Download,
   Filter,
   Inbox,
+  Plus,
   Shuffle,
   UserRoundCheck,
 } from "lucide-react";
@@ -43,7 +44,7 @@ import {
   TableToolbar,
   TableWrap,
 } from "@/components/kit";
-import { DetalhePublicacaoPanel, DistribuicaoModal } from "@/components/painel";
+import { DetalhePublicacaoPanel, DistribuicaoModal, NovoProcessoModal, ObservacaoCell } from "@/components/painel";
 import {
   useAdvogados,
   useCapacidadeOperacional,
@@ -56,14 +57,14 @@ import {
 } from "@/hooks";
 import { contarDiasUteis } from "@/lib/datas";
 import { baixarArquivo, gerarCsv } from "@/lib/exportar";
-import { formatarData, truncar } from "@/lib/format";
+import { formatarData, formatarNumeroProcesso, truncar } from "@/lib/format";
 import { somarDiasUteis } from "@/lib/prazos";
 import { useUsuarioAtual } from "@/hooks";
 import { useUiStore } from "@/store";
 import type { ConsultaIntimacoes, ID } from "@/types";
 
 const TAMANHO_PAGINA = 8;
-const COLUNAS = 9;
+const COLUNAS = 10;
 
 /**
  * Tela 1 — Painel de Intimações.
@@ -90,6 +91,7 @@ export default function PainelIntimacoes() {
 
   const buscaDebounced = useValorDebounced(filtros.busca, 350);
   const rotaDistribuicao = pathname === "/painel/distribuicao";
+  const rotaNovoProcesso = pathname === "/painel/novo-processo";
 
   /* Preferência inicial: advogado começa em "Minha pauta". */
   useEffect(() => {
@@ -184,9 +186,11 @@ export default function PainelIntimacoes() {
           "Dias úteis",
           "Responsável",
           "Status",
+          "Origem",
+          "Observações",
         ],
         dados.map((item) => [
-          item.numero_processo,
+          formatarNumeroProcesso(item.numero_processo),
           item.tribunal_sigla,
           item.orgao_julgador,
           formatarData(item.data_disponibilizacao),
@@ -206,9 +210,20 @@ export default function PainelIntimacoes() {
             ? (nomePorId.get(item.advogado_id) ?? "Atribuído")
             : "Não atribuído",
           item.status_fluxo,
+          item.origem,
+          item.observacoes ?? "",
         ]),
       );
-      baixarArquivo("MG-painel-intimacoes.csv", conteudo);
+      const dataHora = new Intl.DateTimeFormat("sv-SE", {
+        timeZone: "America/Sao_Paulo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(new Date()).replace(" ", "_").replace(":", "");
+      baixarArquivo(`MG-painel-intimacoes-${dataHora}.csv`, conteudo);
       toast.success(
         `${dados.length} publicações exportadas em CSV (compatível com Excel).`,
       );
@@ -256,6 +271,12 @@ export default function PainelIntimacoes() {
               >
                 <Shuffle className="h-3.5 w-3.5" aria-hidden="true" />
                 Distribuir em lote
+              </Button>
+            ) : null}
+            {ehAdmin ? (
+              <Button variant="secondary" onClick={() => navigate("/painel/novo-processo")}>
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                Incluir processo
               </Button>
             ) : null}
             <Button
@@ -438,6 +459,7 @@ export default function PainelIntimacoes() {
                   />
                 </TableHeaderCell>
                 <TableHeaderCell>Nº do processo</TableHeaderCell>
+                <TableHeaderCell className="min-w-[240px]">Observações</TableHeaderCell>
                 <TableHeaderCell>Órgão / vara</TableHeaderCell>
                 <TableHeaderCell>Disponibilização</TableHeaderCell>
                 <TableHeaderCell>Ação identificada pela IA</TableHeaderCell>
@@ -507,7 +529,7 @@ export default function PainelIntimacoes() {
                     >
                       <TableCell onClick={(evento) => evento.stopPropagation()}>
                         <Checkbox
-                          aria-label={`Selecionar ${item.numero_processo}`}
+                          aria-label={`Selecionar ${formatarNumeroProcesso(item.numero_processo)}`}
                           checked={selecionadas.includes(item.id)}
                           onChange={() => alternarLinha(item.id)}
                         />
@@ -515,10 +537,15 @@ export default function PainelIntimacoes() {
                       <TableCell>
                         <span className="flex items-center gap-2">
                           <strong className="text-[11px] font-semibold">
-                            {item.numero_processo}
+                            {formatarNumeroProcesso(item.numero_processo)}
                           </strong>
                           <Badge variant="neutral">{item.tribunal_sigla}</Badge>
+                          {item.origem === "manual" ? <Badge variant="neutral">Manual</Badge> : null}
+                          {item.duplicado ? <Badge variant="warning">Já existia</Badge> : null}
                         </span>
+                      </TableCell>
+                      <TableCell onClick={(evento) => evento.stopPropagation()}>
+                        <ObservacaoCell intimacaoId={item.id} observacao={item.observacoes} />
                       </TableCell>
                       <TableCell className="max-w-[220px] whitespace-normal text-[11px]">
                         {truncar(item.orgao_julgador, 25)}
@@ -555,7 +582,7 @@ export default function PainelIntimacoes() {
                         <Button
                           variant="secondary"
                           size="icon-sm"
-                          aria-label={`Abrir detalhes de ${item.numero_processo}`}
+                          aria-label={`Abrir detalhes de ${formatarNumeroProcesso(item.numero_processo)}`}
                           onClick={() => abrirDetalhe(item.id)}
                         >
                           <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -605,6 +632,13 @@ export default function PainelIntimacoes() {
           setPagina(1);
         }}
       />
+
+      {ehAdmin ? (
+        <NovoProcessoModal
+          open={rotaNovoProcesso}
+          onClose={() => navigate("/painel")}
+        />
+      ) : null}
 
       {/* Tela 1.2 — Detalhamento & análise IA */}
       <DetalhePublicacaoPanel

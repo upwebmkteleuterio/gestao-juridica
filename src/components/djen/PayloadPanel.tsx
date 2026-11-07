@@ -3,7 +3,7 @@ import { Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AnaliseBadge, Badge, Button, IconButton, Skeleton, SlidePanel } from "@/components/kit";
 import { useIntimacaoDjenRaw } from "@/hooks";
-import { formatarData, formatarDataHora, truncar } from "@/lib/format";
+import { formatarData, formatarDataHora, formatarNumeroProcesso, truncar } from "@/lib/format";
 
 export interface PayloadPanelProps {
   payloadId: string | null;
@@ -79,7 +79,7 @@ export function PayloadPanel({ payloadId, onClose }: PayloadPanelProps) {
                 <div><dt className="label-kit">Órgão</dt><dd className="mt-1 text-[11px]">{texto(json?.nomeOrgao)}</dd></div>
                 <div><dt className="label-kit">Meio</dt><dd className="mt-1 text-[11px]">{texto(json?.meio)}</dd></div>
                 <div><dt className="label-kit">Data de disponibilização</dt><dd className="mt-1 text-[11px]">{formatarData(dataDisponibilizacao === "—" ? null : dataDisponibilizacao)}</dd></div>
-                <div><dt className="label-kit">Nº do processo</dt><dd className="mt-1 text-[11px]">{texto(json?.numero_processo ?? json?.numeroprocessocommascara)}</dd></div>
+                <div><dt className="label-kit">Nº do processo</dt><dd className="mt-1 text-[11px]">{formatarNumeroProcesso(texto(json?.numero_processo ?? json?.numeroprocessocommascara))}</dd></div>
                 <div><dt className="label-kit">Data de captura</dt><dd className="mt-1 text-[11px]">{formatarDataHora(payload.criado_em)}</dd></div>
                 <div className="sm:col-span-2"><dt className="label-kit">Link oficial</dt><dd className="mt-1 break-all text-[11px]">{link ? <a className="text-info underline" href={link} target="_blank" rel="noreferrer">{link}</a> : "—"}</dd></div>
                 <div className="sm:col-span-2"><dt className="label-kit">Destinatários</dt><dd className="mt-1 flex flex-wrap gap-1.5">

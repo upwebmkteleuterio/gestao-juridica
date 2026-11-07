@@ -1,0 +1,1 @@
+alter table public.intimacoes alter column data_disponibilizacao drop not null

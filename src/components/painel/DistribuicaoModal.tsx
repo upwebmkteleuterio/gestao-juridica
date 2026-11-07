@@ -60,7 +60,9 @@ export function DistribuicaoModal({
   const [selecionados, setSelecionados] = useState<ID[]>([]);
 
   useEffect(() => {
-    if (open && elegiveis) setSelecionados(elegiveis.map((item) => item.id));
+    if (open && elegiveis) {
+      setSelecionados(elegiveis.filter((item) => item.ativo_distribuicao).map((item) => item.id));
+    }
   }, [open, elegiveis]);
 
   const previa = usePreviaDistribuicao(
@@ -206,7 +208,7 @@ export function DistribuicaoModal({
         {/* Checklist de elegíveis */}
         <div>
           <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="label-kit">Advogados elegíveis</p>
+            <p className="label-kit">Advogados disponíveis</p>
             <Badge variant="neutral">
               {selecionados.length} de {elegiveis?.length ?? 0}
             </Badge>
@@ -243,11 +245,15 @@ export function DistribuicaoModal({
                       />
                       <Avatar nome={advogado.nome_completo} tamanho="sm" />
                       <span className="min-w-0 flex-1">
-                        <strong className="block truncate text-[11px] font-semibold">
-                          {advogado.nome_completo}
-                        </strong>
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <strong className="block truncate text-[11px] font-semibold">
+                            {advogado.nome_completo}
+                          </strong>
+                          {!advogado.ativo_distribuicao ? <Badge variant="neutral">Fora da distribuição</Badge> : null}
+                        </span>
                         <small className="block text-[10px] text-muted-foreground">
                           {formatarOab(advogado.oab_numero, advogado.oab_uf)}
+                          {!advogado.ativo_distribuicao ? " · Opcional; pode ser selecionado manualmente" : ""}
                         </small>
                       </span>
                       <Badge variant="neutral">

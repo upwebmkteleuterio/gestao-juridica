@@ -1,0 +1,1 @@
+alter table public.intimacoes add column duplicado boolean not null default false

@@ -39,9 +39,10 @@ import {
   useRegistrarEvento,
 } from "@/hooks";
 import { contarDiasUteis } from "@/lib/datas";
-import { formatarData, formatarDataHora } from "@/lib/format";
+import { formatarData, formatarDataHora, formatarNumeroProcesso } from "@/lib/format";
 import { somarDiasUteis } from "@/lib/prazos";
 import { useUsuarioAtual } from "@/hooks";
+import { ObservacaoCell } from "./ObservacaoCell";
 
 export interface DetalhePublicacaoPanelProps {
   intimacaoId: string | null;
@@ -65,7 +66,7 @@ export function DetalhePublicacaoPanel({
 
   const intimacaoQuery = useIntimacao(intimacaoId ?? undefined);
   const intimacao = intimacaoQuery.data ?? null;
-  const rawQuery = useIntimacaoDjenRaw(intimacao?.raw_id);
+  const rawQuery = useIntimacaoDjenRaw(intimacao?.raw_id ?? undefined);
   const payload = rawQuery.data?.payload_json;
 
   const { data: advogados } = useAdvogadosVisiveis();
@@ -74,7 +75,7 @@ export function DetalhePublicacaoPanel({
   const reativar = useReativarIntimacao();
   const registrarEvento = useRegistrarEvento();
   const analisar = useAnalisarPublicacao();
-  const analises = useAnalisesIa(intimacao?.raw_id);
+  const analises = useAnalisesIa(intimacao?.raw_id ?? undefined);
 
   /* Rascunho editável do parecer da IA */
   const [acao, setAcao] = useState("");
@@ -152,7 +153,7 @@ export function DetalhePublicacaoPanel({
 
   /* A reanálise nunca apaga o texto original: só acrescenta uma linha no histórico. */
   async function rodarAnalise() {
-    if (!intimacao) return;
+    if (!intimacao?.raw_id) return;
     try {
       const resultado = await analisar.mutateAsync(intimacao.raw_id);
       const falhouTudo = resultado.falhas > 0 && resultado.sucessos === 0;
@@ -309,17 +310,19 @@ export function DetalhePublicacaoPanel({
       open={aberto}
       onClose={onClose}
       eyebrow="Detalhe da publicação · Tela 1.2"
-      titulo={intimacao?.numero_processo ?? "Carregando publicação…"}
+      titulo={intimacao ? formatarNumeroProcesso(intimacao.numero_processo) : "Carregando publicação…"}
       badge={
         intimacao ? (
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="neutral">{intimacao.tribunal_sigla}</Badge>
             <StatusBadge status={intimacao.status_fluxo} />
-            <Badge variant={prazoDivergente ? "warning" : "gold"}>
-              {prazoDivergente
-                ? "Prazo ajustado manualmente"
-                : "Prazo sugerido pela IA"}
-            </Badge>
+            {intimacao.origem !== "manual" ? (
+              <Badge variant={prazoDivergente ? "warning" : "gold"}>
+                {prazoDivergente
+                  ? "Prazo ajustado manualmente"
+                  : "Prazo sugerido pela IA"}
+              </Badge>
+            ) : null}
           </div>
         ) : null
       }
@@ -354,9 +357,11 @@ export function DetalhePublicacaoPanel({
         </Alert>
       ) : (
         <div className="space-y-6">
-          {/* Datas-chave da publicação — leitura imediata, antes do parecer da IA */}
-          <section>
-            <p className="label-kit mb-3">Datas da publicação</p>
+          {intimacao.origem !== "manual" ? (
+            <>
+              {/* Datas-chave da publicação — leitura imediata, antes do parecer da IA */}
+              <section>
+                <p className="label-kit mb-3">Datas da publicação</p>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-sm border border-border p-4 text-[10px]">
               <div>
                 <dt className="text-muted-foreground">Disponibilização (DJEN)</dt>
@@ -385,17 +390,25 @@ export function DetalhePublicacaoPanel({
                 <dd className="mt-1 font-medium tabular-nums">{intimacao.data_fatal_calculada ? formatarData(intimacao.data_fatal_calculada) : "não identificado"}</dd>
               </div>
             </dl>
-          </section>
+              </section>
+              <div className="border-t border-border" />
+            </>
+          ) : null}
 
-          <div className="border-t border-border" />
-
-          {status === "triagem" ? (
+          {status === "triagem" && intimacao.origem !== "manual" ? (
             <Alert severidade="warning" titulo="Aguardando conferência humana">
               O prazo extraído pela IA permanece pendente até a validação. A
               contagem e a data fatal não são confirmadas pela máquina.
             </Alert>
           ) : null}
 
+          {intimacao.origem === "manual" ? (
+            <section>
+              <p className="label-kit mb-3">Observações</p>
+              <ObservacaoCell intimacaoId={intimacao.id} observacao={intimacao.observacoes} />
+            </section>
+          ) : (
+            <>
           {/* Parecer da IA — campos editáveis */}
           <section>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -678,8 +691,10 @@ export function DetalhePublicacaoPanel({
               </p>
             )}
           </section>
+            </>
+          )}
 
-          <div className="border-t border-border" />
+          {intimacao.origem !== "manual" ? <div className="border-t border-border" /> : null}
 
           {/* Atribuição */}
           <section>
@@ -729,10 +744,10 @@ export function DetalhePublicacaoPanel({
 
       {/* Inteiro teor em modal rolável, sobreposto ao painel de detalhe. */}
       <Modal
-        open={teorAberto}
+        open={teorAberto && intimacao?.origem !== "manual"}
         onClose={() => setTeorAberto(false)}
         titulo="Inteiro teor da publicação"
-        descricao={`Processo ${intimacao?.numero_processo ?? "—"}`}
+        descricao={`Processo ${formatarNumeroProcesso(intimacao?.numero_processo)}`}
         largura="max-w-3xl"
         footer={
           <>

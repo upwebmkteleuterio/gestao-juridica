@@ -75,6 +75,25 @@ export function useIntimacao(id?: string) {
   });
 }
 
+export function useNumeroProcessoExistente(numeroDigitos: string) {
+  return useQuery({
+    queryKey: ["intimacoes", "numero-existente", numeroDigitos],
+    queryFn: () => intimacoesService.existeNumero(numeroDigitos),
+    enabled: numeroDigitos.length === 20,
+    staleTime: 0,
+  });
+}
+
+export function useCriarProcessoManual() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { numero_processo: string; observacoes: string | null; duplicado: boolean }) =>
+      intimacoesService.criarProcessoManual(input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
+  });
+}
+
 /** Recorte completo (sem paginação) usado pela exportação. */
 export function useExportarIntimacoes() {
   return useMutation({
@@ -97,6 +116,16 @@ export function useAtualizarIntimacao() {
   return useMutation({
     mutationFn: ({ id, input }: { id: ID; input: Partial<IntimacaoInput> }) =>
       intimacoesService.update(id, input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
+  });
+}
+
+export function useAtualizarObservacaoIntimacao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, observacoes }: { id: ID; observacoes: string | null }) =>
+      intimacoesService.update(id, { observacoes }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
   });

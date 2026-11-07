@@ -1,0 +1,1 @@
+create policy "intimacoes_insert_admin" on public.intimacoes for insert to authenticated with check (public.perfil_do_usuario() = 'admin')

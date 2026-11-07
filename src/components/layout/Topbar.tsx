@@ -2,7 +2,7 @@ import { Bell, Menu, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useIndicadoresIngestaoDjen, useTarefasCriticas } from "@/hooks";
-import { formatarData } from "@/lib/format";
+import { formatarData, formatarNumeroProcesso } from "@/lib/format";
 import { Badge, Button, IconButton } from "@/components/kit";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -144,7 +144,7 @@ export function Topbar({ onAbrirMenu }: TopbarProps) {
                               {tarefa.tipo_peca}
                             </strong>
                             <small className="block truncate text-[10px] text-muted-foreground">
-                              {tarefa.numero_processo}
+                              {formatarNumeroProcesso(tarefa.numero_processo)}
                             </small>
                           </span>
                           <Badge variant="danger">

@@ -44,6 +44,7 @@ const App = () => (
             <Route path="/painel" element={<PainelIntimacoes />} />
             <Route path="/painel/distribuicao" element={<PainelIntimacoes />} />
             <Route path="/painel/publicacao/:id" element={<PainelIntimacoes />} />
+            <Route path="/painel/novo-processo" element={<PainelIntimacoes />} />
             <Route path="/esteira" element={<EsteiraPrazos />} />
             <Route path="/esteira/tarefa/:id" element={<EsteiraPrazos />} />
             <Route path="/esteira/novo-prazo" element={<EsteiraPrazos />} />

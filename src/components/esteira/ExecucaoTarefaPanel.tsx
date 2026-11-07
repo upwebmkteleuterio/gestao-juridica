@@ -20,7 +20,7 @@ import {
 } from "@/components/kit";
 import { ETAPAS_KANBAN, enviarComprovante, obterUrlComprovante, removerComprovante } from "@/services";
 import { useAdvogados, useArquivarTarefa, useAtualizarTarefaPrazo, useDesarquivarTarefa, useEventosPorEntidade, useRegistrarEvento, useTarefaPrazo, useUsuarioAtual } from "@/hooks";
-import { formatarData, formatarDataHora } from "@/lib/format";
+import { formatarData, formatarDataHora, formatarNumeroProcesso } from "@/lib/format";
 import { horasAte } from "@/lib/datas";
 import type { EtapaKanban } from "@/types";
 
@@ -231,7 +231,7 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
       open={Boolean(tarefaId)}
       onClose={onClose}
       eyebrow="Execução da tarefa · Tela 2.1"
-      titulo={tarefa?.numero_processo ?? "Carregando tarefa…"}
+      titulo={tarefa ? formatarNumeroProcesso(tarefa.numero_processo) : "Carregando tarefa…"}
       badge={tarefa ? (
         <div className="flex flex-wrap items-center gap-2">
           <EtapaBadge etapa={tarefa.etapa_kanban} />
@@ -268,7 +268,7 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
           <section>
             <h3 className="mb-3 text-[12px] font-semibold">Resumo da demanda</h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-sm border border-border p-4 text-[10px]">
-              <div><dt className="text-muted-foreground">Processo</dt><dd className="mt-1 flex items-center gap-1 font-medium tabular-nums">{tarefa.numero_processo}<CopiarButton valor={tarefa.numero_processo} rotulo="Copiar número do processo" mensagem="Número do processo copiado." /></dd></div>
+              <div><dt className="text-muted-foreground">Processo</dt><dd className="mt-1 flex items-center gap-1 font-medium tabular-nums">{formatarNumeroProcesso(tarefa.numero_processo)}<CopiarButton valor={formatarNumeroProcesso(tarefa.numero_processo)} rotulo="Copiar número do processo" mensagem="Número do processo copiado." /></dd></div>
               <div><dt className="text-muted-foreground">Tribunal</dt><dd className="mt-1 font-medium">{tarefa.tribunal_sigla ?? "Manual"}</dd></div>
               <div><dt className="text-muted-foreground">Ação</dt><dd className="mt-1 font-medium">{tarefa.tipo_peca}</dd></div>
               <div><dt className="text-muted-foreground">Partes</dt><dd className="mt-1 font-medium">{tarefa.partes_resumo}</dd></div>

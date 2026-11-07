@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Badge, Button, CopiarButton, DateRange, EmptyState, ErrorState, Panel, PanelHeader, PessoaTag, Select, Skeleton } from "@/components/kit";
 import { useArquivadas, useDesarquivarTarefa, useRegistrarEvento, useUsuarioAtual } from "@/hooks";
 import { diaISO, hojeISO, somarDias } from "@/lib/datas";
-import { formatarData, formatarDataHora } from "@/lib/format";
+import { formatarData, formatarDataHora, formatarNumeroProcesso } from "@/lib/format";
 import { obterUrlComprovante } from "@/services";
 import type { Advogado, ConsultaArquivados, ID, TarefaPrazo } from "@/types";
 
@@ -97,7 +97,7 @@ export function ArquivadosTab({ responsavelId, advogados }: ArquivadosTabProps) 
               {tarefas.map((tarefa) => (
                 <li key={tarefa.id} className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3 p-4">
                   <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-1"><strong className="text-[11px] tabular-nums">{tarefa.numero_processo}</strong><CopiarButton valor={tarefa.numero_processo} rotulo="Copiar número do processo" mensagem="Número do processo copiado." /></div>
+                    <div className="flex flex-wrap items-center gap-1"><strong className="text-[11px] tabular-nums">{formatarNumeroProcesso(tarefa.numero_processo)}</strong><CopiarButton valor={formatarNumeroProcesso(tarefa.numero_processo)} rotulo="Copiar número do processo" mensagem="Número do processo copiado." /></div>
                     <p className="text-[11px] font-medium">{tarefa.tipo_peca}</p>
                     <p className="text-[10px] text-muted-foreground">{tarefa.partes_resumo || "—"}</p>
                   </div>

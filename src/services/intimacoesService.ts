@@ -18,7 +18,7 @@ import type {
 import { invocarFuncao, mensagemDeErro } from "./erros";
 import { criarRepositorioSupabase } from "./repositorioSupabase";
 
-const COLUNAS = "id, raw_id, numero_processo, tribunal_sigla, orgao_julgador, data_disponibilizacao, acao_sugerida_ia, resumo_ia, prazo_extraido_texto, data_fatal_calculada, advogado_id, status_fluxo, distribuido_em, trecho_fundamentador, pendencias, status_analise, analisado_em";
+const COLUNAS = "id, raw_id, numero_processo, tribunal_sigla, orgao_julgador, data_disponibilizacao, origem, observacoes, duplicado, acao_sugerida_ia, resumo_ia, prazo_extraido_texto, data_fatal_calculada, advogado_id, status_fluxo, distribuido_em, trecho_fundamentador, pendencias, status_analise, analisado_em";
 const COLUNAS_ANALISE = "id, raw_id, modelo, status, resumo, acao_sugerida, prazo_texto, prazo_data, trecho_fundamentador, pendencias, motivo_falha, duracao_ms, criado_em";
 const ORDENACAO_PADRAO: OrdenacaoConsulta<CampoOrdenacaoIntimacao> = {
   campo: "data_disponibilizacao",
@@ -44,6 +44,9 @@ function normalizar(linha: Intimacao): Intimacao {
     pendencias: Array.isArray(linha.pendencias) ? linha.pendencias : [],
     status_analise: linha.status_analise ?? "pendente",
     analisado_em: linha.analisado_em ?? null,
+    origem: linha.origem ?? "djen",
+    observacoes: linha.observacoes ?? null,
+    duplicado: Boolean(linha.duplicado),
   };
 }
 
@@ -57,7 +60,9 @@ function consultaBase(consulta: ConsultaIntimacoes = {}) {
   let query = supabase.from("intimacoes").select(COLUNAS, { count: "exact" });
   const busca = consulta.busca?.trim().replace(/[,()%*\\"]/g, "").trim() ?? "";
   if (busca) {
-    query = query.or(`numero_processo.ilike.*${busca}*,tribunal_sigla.ilike.*${busca}*,orgao_julgador.ilike.*${busca}*,acao_sugerida_ia.ilike.*${busca}*,resumo_ia.ilike.*${busca}*`);
+    const digitos = busca.replace(/\D/g, "");
+    const buscaProcesso = digitos ? `,numero_processo.ilike.*${digitos}*` : "";
+    query = query.or(`numero_processo.ilike.*${busca}*${buscaProcesso},tribunal_sigla.ilike.*${busca}*,orgao_julgador.ilike.*${busca}*,acao_sugerida_ia.ilike.*${busca}*,resumo_ia.ilike.*${busca}*`);
   }
   if (consulta.tribunal) query = query.eq("tribunal_sigla", consulta.tribunal);
   if (consulta.disponibilizacaoDe) query = query.gte("data_disponibilizacao", consulta.disponibilizacaoDe);
@@ -71,7 +76,7 @@ function aplicarOrdenacao(query: ReturnType<typeof consultaBase>, ordenacao?: Or
   const ordem = ordenacao ?? ORDENACAO_PADRAO;
   const campo = CAMPOS_ORDENAVEIS[ordem.campo] ?? "data_disponibilizacao";
   return query
-    .order(campo, { ascending: ordem.direcao === "asc" })
+    .order(campo, { ascending: ordem.direcao === "asc", nullsFirst: false })
     .order("numero_processo", { ascending: true });
 }
 
@@ -95,6 +100,43 @@ export const intimacoesService = {
       dados = ajustada.data ?? [];
     }
     return { dados: (dados as unknown as Intimacao[]).map(normalizar), total, pagina, tamanhoPagina, totalPaginas };
+  },
+
+  async existeNumero(numero: string): Promise<{ id: ID; numero_processo: string; created_at: string; origem: Intimacao["origem"] } | null> {
+    const { data, error } = await supabase.from("intimacoes")
+      .select("id, numero_processo, created_at, origem")
+      .eq("numero_processo", numero.replace(/\D/g, ""))
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(mensagemDeErro(error));
+    return data as { id: ID; numero_processo: string; created_at: string; origem: Intimacao["origem"] } | null;
+  },
+
+  async criarProcessoManual(input: { numero_processo: string; observacoes: string | null; duplicado: boolean }): Promise<Intimacao> {
+    const { data, error } = await supabase.from("intimacoes").insert({
+      origem: "manual",
+      numero_processo: input.numero_processo.replace(/\D/g, ""),
+      observacoes: input.observacoes,
+      duplicado: input.duplicado,
+      raw_id: null,
+      data_disponibilizacao: null,
+      advogado_id: null,
+      status_fluxo: "triagem",
+      status_analise: "pendente",
+      distribuido_em: null,
+      analisado_em: null,
+      data_fatal_calculada: null,
+      prazo_extraido_texto: null,
+      tribunal_sigla: "",
+      orgao_julgador: "",
+      acao_sugerida_ia: "",
+      resumo_ia: "",
+      trecho_fundamentador: "",
+      pendencias: [],
+    } as never).select(COLUNAS).single();
+    if (error) throw new Error(mensagemDeErro(error));
+    return normalizar(data as unknown as Intimacao);
   },
 
   async listarParaExportacao(consulta: ConsultaIntimacoes = {}): Promise<Intimacao[]> {
@@ -131,10 +173,17 @@ export const intimacoesService = {
 
   async obterIndicadores(): Promise<IndicadoresIntimacoes> {
     const { data: ultima, error: erroUltima } = await supabase.from("intimacoes").select("data_disponibilizacao")
-      .order("data_disponibilizacao", { ascending: false }).limit(1).maybeSingle();
+      .order("data_disponibilizacao", { ascending: false, nullsFirst: false }).limit(1).maybeSingle();
     if (erroUltima) throw new Error(mensagemDeErro(erroUltima));
     const dataReferencia = ultima?.data_disponibilizacao ?? "";
-    if (!dataReferencia) return { novasHoje: 0, dataReferencia: "", criticosSemana: 0, pendentesAtribuicao: 0 };
+    if (!dataReferencia) {
+      const { count, error } = await supabase.from("intimacoes")
+        .select("id", { count: "exact", head: true })
+        .eq("status_fluxo", "triagem")
+        .is("advogado_id", null);
+      if (error) throw new Error(mensagemDeErro(error));
+      return { novasHoje: 0, dataReferencia: "", criticosSemana: 0, pendentesAtribuicao: count ?? 0 };
+    }
     const fimSemana = new Date(`${dataReferencia}T00:00:00Z`);
     fimSemana.setUTCDate(fimSemana.getUTCDate() + DIAS_SEMANA);
     const dataFim = fimSemana.toISOString().slice(0, 10);

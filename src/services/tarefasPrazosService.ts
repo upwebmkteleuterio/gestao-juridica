@@ -208,7 +208,7 @@ export const tarefasPrazosService = {
 
   async obterProdutividadeEquipe(): Promise<AdvogadoCarga[]> {
     const [advogados, tarefas] = await Promise.all([
-      supabase.from("advogados").select("id, nome_completo, email_corporativo, oab_numero, oab_uf, perfil, ativo_distribuicao, cargo, data_ingresso").eq("oculto_da_equipe", false),
+      supabase.from("advogados").select("id, nome_completo, email_corporativo, oab_numero, oab_uf, perfil, ativo_distribuicao, oculto_da_equipe, cargo, data_ingresso"),
       supabase.from("tarefas_prazos").select(COLUNAS),
     ]);
     if (advogados.error) throw new Error(mensagemDeErro(advogados.error));
@@ -225,13 +225,15 @@ export const tarefasPrazosService = {
         oab_uf: advogado.oab_uf ?? "",
         perfil: advogado.perfil,
         ativo_distribuicao: advogado.ativo_distribuicao,
+        oculto_da_equipe: advogado.oculto_da_equipe,
         cargo: advogado.cargo,
         data_ingresso: advogado.data_ingresso,
         total_prazos: abertas.length,
         criticos_48h: abertas.filter((tarefa) => slaDeDataFatal(tarefa.data_fatal).critico).length,
         concluidos_mes: proprias.filter((tarefa) => tarefa.etapa_kanban === "concluido").length,
       };
-    }).sort((a, b) => b.total_prazos - a.total_prazos);
+    }).filter((advogado) => !advogado.oculto_da_equipe || advogado.total_prazos > 0)
+      .sort((a, b) => b.total_prazos - a.total_prazos);
   },
 
   async contarPorEtapa(): Promise<Record<EtapaKanban, number>> {

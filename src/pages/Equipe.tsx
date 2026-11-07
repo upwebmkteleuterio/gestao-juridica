@@ -150,7 +150,8 @@ export default function Equipe() {
                       </div>
 
                       <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                        {advogado.ativo_distribuicao ? <Badge variant="success"><span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />Ativo na distribuição</Badge> : <Badge variant="neutral"><PauseCircle className="h-3 w-3" aria-hidden="true" />Pausado / férias</Badge>}
+                        {advogado.ativo_distribuicao ? <Badge variant="success"><span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />Ativo na distribuição</Badge> : <Badge variant="neutral"><PauseCircle className="h-3 w-3" aria-hidden="true" />Fora da distribuição</Badge>}
+                        {advogado.oculto_da_equipe ? <Badge variant="neutral">Oculto da equipe</Badge> : null}
                         {acessoConhecido && acesso ? <Badge variant={acesso.pode_entrar ? "success" : "danger"}>{acesso.pode_entrar ? "Acesso liberado" : "Acesso bloqueado"}</Badge> : null}
                       </div>
 

@@ -34,7 +34,7 @@ import {
   useConfiguracoes,
   useIndicadoresIngestaoDjen,
 } from "@/hooks";
-import { formatarData, formatarDataHora, truncar } from "@/lib/format";
+import { formatarData, formatarDataHora, formatarNumeroProcesso, truncar } from "@/lib/format";
 
 const TAMANHO_PAGINA = 8;
 
@@ -268,7 +268,7 @@ export default function DjenMonitor() {
                   <TableCell className="font-medium">{item.djen_id_original}</TableCell>
                   <TableCell>{item.tribunal_sigla}</TableCell>
                   <TableCell>{item.orgao_julgador}</TableCell>
-                  <TableCell>{item.numero_processo}</TableCell>
+                  <TableCell>{formatarNumeroProcesso(item.numero_processo)}</TableCell>
                   <TableCell>{formatarData(item.data_disponibilizacao)}</TableCell>
                   <TableCell>
                     <code className="font-mono text-[10px]" title={item.djen_hash}>

@@ -3,21 +3,26 @@ import type {
   DateOnly,
   ID,
   ISODate,
+  OrigemIntimacao,
   StatusAnaliseIA,
   StatusFluxoIntimacao,
 } from "./common";
 
 /**
  * Tabela `intimacoes` — triagem e processamento pela IA.
- * Alimenta o Painel do Gestor (Tela 1).
+ * Publicações do DJEN podem ter um payload bruto e data de disponibilização;
+ * registros manuais não possuem esses campos.
  */
 export interface Intimacao {
   id: ID;
-  raw_id: ID;
+  raw_id: ID | null;
   numero_processo: string;
   tribunal_sigla: string;
   orgao_julgador: string;
-  data_disponibilizacao: DateOnly;
+  data_disponibilizacao: DateOnly | null;
+  origem: OrigemIntimacao;
+  observacoes: string | null;
+  duplicado: boolean;
   acao_sugerida_ia: string;
   resumo_ia: string;
   /** Prazo exatamente como o texto indicou, ou "não identificado". */

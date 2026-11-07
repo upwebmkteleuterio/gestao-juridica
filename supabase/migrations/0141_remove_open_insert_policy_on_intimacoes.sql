@@ -1,0 +1,1 @@
+drop policy "intimacoes_insert_autenticado" on public.intimacoes

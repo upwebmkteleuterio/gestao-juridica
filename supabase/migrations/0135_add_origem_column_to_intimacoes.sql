@@ -1,0 +1,1 @@
+alter table public.intimacoes add column origem text not null default 'djen'

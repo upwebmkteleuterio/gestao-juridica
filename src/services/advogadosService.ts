@@ -35,7 +35,6 @@ export const advogadosService = {
     const { data, error } = await supabase
       .from("advogados")
       .select(COLUNAS)
-      .eq("ativo_distribuicao", true)
       .eq("oculto_da_equipe", false);
     if (error) throw new Error(mensagemDeErro(error));
     return ((data ?? []) as unknown as Advogado[]).map(montar);

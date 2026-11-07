@@ -1,0 +1,1 @@
+alter table public.intimacoes alter column raw_id drop not null
