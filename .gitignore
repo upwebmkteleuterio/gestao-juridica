@@ -37,3 +37,10 @@ dist-ssr
 /mapa_de_fluxo_ux_ui_sistema_jur_dico_djen_ia.md
 /docs/referencias/
 *.reference.md
+
+# Playwright test artifacts
+/e2e-tests/fixtures/dyad/preview-dns.cjs
+
+# Playwright test artifacts
+/e2e-tests/fixtures/dyad/
+/e2e-tests/tsconfig.json
