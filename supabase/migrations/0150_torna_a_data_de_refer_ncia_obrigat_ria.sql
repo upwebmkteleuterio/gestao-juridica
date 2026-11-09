@@ -1,0 +1,1 @@
+alter table public.intimacoes alter column data_referencia set not null

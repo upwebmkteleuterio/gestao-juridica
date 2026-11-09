@@ -1,9 +1,13 @@
 import {
+  Archive,
+  ArchiveRestore,
   CalendarClock,
   ChevronRight,
   Download,
+  Eraser,
   Filter,
   Inbox,
+  ListChecks,
   Plus,
   Shuffle,
   UserRoundCheck,
@@ -24,6 +28,7 @@ import {
   ErrorState,
   FormField,
   KpiCard,
+  MenuAcoes,
   PageHeading,
   Pagination,
   Panel,
@@ -44,11 +49,21 @@ import {
   TableToolbar,
   TableWrap,
 } from "@/components/kit";
-import { DetalhePublicacaoPanel, DistribuicaoModal, NovoProcessoModal, ObservacaoCell } from "@/components/painel";
+import {
+  AcoesPeriodoModal,
+  DetalhePublicacaoPanel,
+  DistribuicaoModal,
+  MarcoZeroForm,
+  NovoProcessoModal,
+  ObservacaoCell,
+  type TipoAcaoPeriodo,
+} from "@/components/painel";
 import {
   useAdvogados,
   useCapacidadeOperacional,
+  useConfiguracoes,
   useConsultaIntimacoes,
+  useDesarquivarIntimacao,
   useExportarIntimacoes,
   useIndicadoresIntimacoes,
   useIntimacoesPendentes,
@@ -57,7 +72,12 @@ import {
 } from "@/hooks";
 import { contarDiasUteis } from "@/lib/datas";
 import { baixarArquivo, gerarCsv } from "@/lib/exportar";
-import { formatarData, formatarNumeroProcesso, truncar } from "@/lib/format";
+import {
+  formatarData,
+  formatarDataHora,
+  formatarNumeroProcesso,
+  truncar,
+} from "@/lib/format";
 import { somarDiasUteis } from "@/lib/prazos";
 import { useUsuarioAtual } from "@/hooks";
 import { useUiStore } from "@/store";
@@ -92,6 +112,25 @@ export default function PainelIntimacoes() {
   const buscaDebounced = useValorDebounced(filtros.busca, 350);
   const rotaDistribuicao = pathname === "/painel/distribuicao";
   const rotaNovoProcesso = pathname === "/painel/novo-processo";
+  const rotaAcao: TipoAcaoPeriodo | null =
+    pathname === "/painel/encerrar-pendencias"
+      ? "encerrar"
+      : pathname === "/painel/arquivar"
+        ? "arquivar"
+        : pathname === "/painel/excluir"
+          ? "excluir"
+          : null;
+
+  const { data: config } = useConfiguracoes();
+  const desarquivar = useDesarquivarIntimacao();
+
+  /* O marco zero é uma configuração do escritório: cada superfície do painel
+     só o aplica quando o admin marcou o respectivo escopo. */
+  const marcoZero = config?.marco_zero ?? null;
+  const marcoIndicadores = marcoZero && config?.marco_zero_indicadores ? marcoZero : null;
+  const marcoLista = marcoZero && config?.marco_zero_lista ? marcoZero : null;
+  const marcoExportacao = marcoZero && config?.marco_zero_exportacao ? marcoZero : null;
+  const vendoArquivadas = filtros.apenasArquivadas;
 
   /* Preferência inicial: advogado começa em "Minha pauta". */
   useEffect(() => {
@@ -110,6 +149,7 @@ export default function PainelIntimacoes() {
     filtros.disponibilizacaoDe,
     filtros.disponibilizacaoAte,
     filtros.apenasMinhaPauta,
+    filtros.apenasArquivadas,
   ]);
 
   const recorte: Omit<ConsultaIntimacoes, "pagina" | "tamanhoPagina"> =
@@ -120,9 +160,12 @@ export default function PainelIntimacoes() {
         disponibilizacaoDe: filtros.disponibilizacaoDe,
         disponibilizacaoAte: filtros.disponibilizacaoAte,
         advogadoId: filtros.apenasMinhaPauta ? (usuario?.id ?? null) : null,
+        apenasArquivadas: filtros.apenasArquivadas,
+        /* A visão de arquivados é histórica: o marco zero não a recorta. */
+        marcoZero: filtros.apenasArquivadas ? null : marcoLista,
         ordenacao: { campo: "data_disponibilizacao", direcao: "desc" },
       }),
-      [buscaDebounced, filtros, usuario?.id],
+      [buscaDebounced, filtros, usuario?.id, marcoLista],
     );
 
   const consulta = useMemo<ConsultaIntimacoes>(
@@ -131,13 +174,17 @@ export default function PainelIntimacoes() {
   );
 
   const lista = useConsultaIntimacoes(consulta);
-  const indicadores = useIndicadoresIntimacoes();
+  const indicadores = useIndicadoresIntimacoes(marcoIndicadores);
   const tribunais = useTribunaisIntimacoes();
   const capacidade = useCapacidadeOperacional();
   const { data: advogados } = useAdvogados();
   const exportar = useExportarIntimacoes();
 
-  const pendentes = useIntimacoesPendentes(recorte, rotaDistribuicao);
+  /* A distribuição em lote só considera publicações ativas. */
+  const pendentes = useIntimacoesPendentes(
+    { ...recorte, apenasArquivadas: false },
+    rotaDistribuicao,
+  );
 
   const itens = lista.data?.dados ?? [];
   const total = lista.data?.total ?? 0;
@@ -170,7 +217,10 @@ export default function PainelIntimacoes() {
 
   async function executarExportacao() {
     try {
-      const dados = await exportar.mutateAsync(recorte);
+      const dados = await exportar.mutateAsync({
+        ...recorte,
+        marcoZero: marcoExportacao,
+      });
       if (dados.length === 0) {
         toast.error("Nenhuma publicação no recorte para exportar.");
         return;
@@ -237,7 +287,8 @@ export default function PainelIntimacoes() {
     Boolean(filtros.tribunal) ||
     Boolean(filtros.disponibilizacaoDe) ||
     Boolean(filtros.disponibilizacaoAte) ||
-    filtros.apenasMinhaPauta;
+    filtros.apenasMinhaPauta ||
+    filtros.apenasArquivadas;
   const partesRecorte = [
     buscaDebounced.trim() ? `busca "${buscaDebounced.trim()}"` : null,
     filtros.tribunal ? `tribunal ${filtros.tribunal}` : null,
@@ -287,6 +338,30 @@ export default function PainelIntimacoes() {
               <Download className="h-3.5 w-3.5" aria-hidden="true" />
               Exportar planilha
             </Button>
+            {ehAdmin ? (
+              <MenuAcoes
+                ariaLabel="Mais ações do painel"
+                itens={[
+                  {
+                    rotulo: "Encerrar pendências anteriores",
+                    icone: <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />,
+                    onSelecionar: () => navigate("/painel/encerrar-pendencias"),
+                  },
+                  {
+                    rotulo: "Arquivar publicações do período",
+                    icone: <Archive className="h-3.5 w-3.5" aria-hidden="true" />,
+                    onSelecionar: () => navigate("/painel/arquivar"),
+                  },
+                  {
+                    rotulo: "Excluir publicações do período",
+                    icone: <Eraser className="h-3.5 w-3.5" aria-hidden="true" />,
+                    variante: "perigo",
+                    separadorAntes: true,
+                    onSelecionar: () => navigate("/painel/excluir"),
+                  },
+                ]}
+              />
+            ) : null}
           </>
         }
       />
@@ -390,6 +465,7 @@ export default function PainelIntimacoes() {
             idAte="filtro-ate"
           />
         </div>
+        <MarcoZeroForm ehAdmin={ehAdmin} />
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
           <span className="text-[10px] text-muted-foreground">
             {recorteAtivo
@@ -406,20 +482,39 @@ export default function PainelIntimacoes() {
       {/* Data grid */}
       <Panel className="overflow-hidden">
         <TableToolbar
-          titulo="Caixa de entrada de intimações"
+          titulo={
+            vendoArquivadas
+              ? "Publicações arquivadas"
+              : "Caixa de entrada de intimações"
+          }
           descricao={
             lista.isLoading
               ? "Consultando publicações…"
               : `${total} publicações no recorte · página ${lista.data?.pagina ?? 1} de ${totalPaginas}`
           }
           acoes={
-            <Badge variant="neutral">
-              {selecionadas.length} selecionadas
-            </Badge>
+            <>
+              <SegmentedControl
+                valor={vendoArquivadas ? "arquivadas" : "ativas"}
+                onChange={(valor) =>
+                  setFiltros({ apenasArquivadas: valor === "arquivadas" })
+                }
+                ariaLabel="Situação das publicações"
+                opcoes={[
+                  { valor: "ativas", rotulo: "Ativas" },
+                  { valor: "arquivadas", rotulo: "Arquivadas" },
+                ]}
+              />
+              {vendoArquivadas ? null : (
+                <Badge variant="neutral">
+                  {selecionadas.length} selecionadas
+                </Badge>
+              )}
+            </>
           }
         />
 
-        {selecionadas.length > 0 ? (
+        {!vendoArquivadas && selecionadas.length > 0 ? (
           <div className="px-5 pb-3">
             <BulkSelectionBar
               selecionados={selecionadas.length}
@@ -443,20 +538,26 @@ export default function PainelIntimacoes() {
           <Table aria-label="Intimações capturadas do DJEN">
             <TableHead>
               <TableRow className="hover:bg-transparent">
-                <TableHeaderCell className="w-10">
-                  <Checkbox
-                    aria-label="Selecionar publicações visíveis"
-                    checked={todasVisiveisSelecionadas}
-                    indeterminate={algumaSelecionada && !todasVisiveisSelecionadas}
-                    onChange={(evento) =>
-                      setSelecionadas(
-                        evento.target.checked
-                          ? itens.map((item) => item.id)
-                          : [],
-                      )
-                    }
-                    disabled={itens.length === 0}
-                  />
+                <TableHeaderCell
+                  className={vendoArquivadas ? "w-[120px]" : "w-10"}
+                >
+                  {vendoArquivadas ? (
+                    "Arquivada em"
+                  ) : (
+                    <Checkbox
+                      aria-label="Selecionar publicações visíveis"
+                      checked={todasVisiveisSelecionadas}
+                      indeterminate={algumaSelecionada && !todasVisiveisSelecionadas}
+                      onChange={(evento) =>
+                        setSelecionadas(
+                          evento.target.checked
+                            ? itens.map((item) => item.id)
+                            : [],
+                        )
+                      }
+                      disabled={itens.length === 0}
+                    />
+                  )}
                 </TableHeaderCell>
                 <TableHeaderCell>Nº do processo</TableHeaderCell>
                 <TableHeaderCell className="min-w-[240px]">Observações</TableHeaderCell>
@@ -466,7 +567,9 @@ export default function PainelIntimacoes() {
                 <TableHeaderCell>Prazo fatal sugerido</TableHeaderCell>
                 <TableHeaderCell>Responsável</TableHeaderCell>
                 <TableHeaderCell>Status do fluxo</TableHeaderCell>
-                <TableHeaderCell className="w-12" />
+                <TableHeaderCell
+                  className={vendoArquivadas ? "w-[140px]" : "w-12"}
+                />
               </TableRow>
             </TableHead>
             <TableBody>
@@ -494,11 +597,17 @@ export default function PainelIntimacoes() {
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={COLUNAS} className="p-0">
                     <EmptyState
-                      titulo="Nenhuma intimação encontrada"
+                      titulo={
+                        vendoArquivadas
+                          ? "Nenhuma publicação arquivada"
+                          : "Nenhuma intimação encontrada"
+                      }
                       descricao={
-                        recorteAtivo
-                          ? "Nenhum registro corresponde ao recorte atual. Ajuste os filtros ou amplie o período."
-                          : "Ainda não há publicações capturadas para este perfil."
+                        vendoArquivadas
+                          ? "As publicações arquivadas aparecem aqui e podem voltar para a caixa de entrada a qualquer momento."
+                          : recorteAtivo
+                            ? "Nenhum registro corresponde ao recorte atual. Ajuste os filtros ou amplie o período."
+                            : "Ainda não há publicações capturadas para este perfil."
                       }
                       acao={
                         <Button variant="secondary" onClick={limparFiltros}>
@@ -528,11 +637,17 @@ export default function PainelIntimacoes() {
                       onClick={() => abrirDetalhe(item.id)}
                     >
                       <TableCell onClick={(evento) => evento.stopPropagation()}>
-                        <Checkbox
-                          aria-label={`Selecionar ${formatarNumeroProcesso(item.numero_processo)}`}
-                          checked={selecionadas.includes(item.id)}
-                          onChange={() => alternarLinha(item.id)}
-                        />
+                        {vendoArquivadas ? (
+                          <span className="text-[11px] text-muted-foreground">
+                            {formatarDataHora(item.arquivado_em)}
+                          </span>
+                        ) : (
+                          <Checkbox
+                            aria-label={`Selecionar ${formatarNumeroProcesso(item.numero_processo)}`}
+                            checked={selecionadas.includes(item.id)}
+                            onChange={() => alternarLinha(item.id)}
+                          />
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className="flex items-center gap-2">
@@ -579,14 +694,44 @@ export default function PainelIntimacoes() {
                         <StatusBadge status={item.status_fluxo} />
                       </TableCell>
                       <TableCell onClick={(evento) => evento.stopPropagation()}>
-                        <Button
-                          variant="secondary"
-                          size="icon-sm"
-                          aria-label={`Abrir detalhes de ${formatarNumeroProcesso(item.numero_processo)}`}
-                          onClick={() => abrirDetalhe(item.id)}
-                        >
-                          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-                        </Button>
+                        {vendoArquivadas ? (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            loading={
+                              desarquivar.isPending &&
+                              desarquivar.variables === item.id
+                            }
+                            aria-label={`Desarquivar ${formatarNumeroProcesso(item.numero_processo)}`}
+                            onClick={() =>
+                              desarquivar.mutate(item.id, {
+                                onSuccess: () =>
+                                  toast.success(
+                                    "Publicação devolvida para a caixa de entrada.",
+                                  ),
+                                onError: () =>
+                                  toast.error(
+                                    "Não foi possível desarquivar a publicação.",
+                                  ),
+                              })
+                            }
+                          >
+                            <ArchiveRestore
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
+                            Desarquivar
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            size="icon-sm"
+                            aria-label={`Abrir detalhes de ${formatarNumeroProcesso(item.numero_processo)}`}
+                            onClick={() => abrirDetalhe(item.id)}
+                          >
+                            <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -638,6 +783,11 @@ export default function PainelIntimacoes() {
           open={rotaNovoProcesso}
           onClose={() => navigate("/painel")}
         />
+      ) : null}
+
+      {/* Ações administrativas em lote sobre um período */}
+      {ehAdmin ? (
+        <AcoesPeriodoModal tipo={rotaAcao} onClose={() => navigate("/painel")} />
       ) : null}
 
       {/* Tela 1.2 — Detalhamento & análise IA */}

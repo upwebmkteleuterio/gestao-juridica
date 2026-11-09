@@ -3,6 +3,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query";
 import { intimacoesService } from "@/services";
 import type {
@@ -18,7 +19,10 @@ export const intimacoesKeys = {
     ["intimacoes", "consulta", consulta] as const,
   detalhe: (id: string) => ["intimacoes", "detalhe", id] as const,
   analises: (rawId: string) => ["intimacoes", "analises", rawId] as const,
-  indicadores: ["intimacoes", "indicadores"] as const,
+  indicadores: (marcoZero: string | null) =>
+    ["intimacoes", "indicadores", marcoZero] as const,
+  resumoAcoes: (inicio: string | null, fim: string | null) =>
+    ["intimacoes", "resumo-acoes", inicio, fim] as const,
   tribunais: ["intimacoes", "tribunais"] as const,
   pendentes: (consulta: ConsultaIntimacoes) =>
     ["intimacoes", "pendentes", consulta] as const,
@@ -34,10 +38,24 @@ export function useConsultaIntimacoes(consulta: ConsultaIntimacoes) {
   });
 }
 
-export function useIndicadoresIntimacoes() {
+/** Indicadores do topo, já recortados pelo marco zero quando ele existe. */
+export function useIndicadoresIntimacoes(marcoZero: string | null = null) {
   return useQuery({
-    queryKey: intimacoesKeys.indicadores,
-    queryFn: () => intimacoesService.obterIndicadores(),
+    queryKey: intimacoesKeys.indicadores(marcoZero),
+    queryFn: () => intimacoesService.obterIndicadores(marcoZero),
+  });
+}
+
+/** Prévia das ações em lote do gestor para o período informado. */
+export function useResumoAcoesPeriodo(
+  inicio: string | null,
+  fim: string | null,
+  habilitado = true,
+) {
+  return useQuery({
+    queryKey: intimacoesKeys.resumoAcoes(inicio, fim),
+    queryFn: () => intimacoesService.resumoAcoesPeriodo(inicio, fim),
+    enabled: habilitado,
   });
 }
 
@@ -238,5 +256,50 @@ export function useReativarIntimacao() {
     mutationFn: (id: ID) => intimacoesService.reativar(id),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Ações em lote do gestor (Tela 1)                                    */
+/* ------------------------------------------------------------------ */
+
+/** Tudo que depende das publicações precisa ser reconsultado após um lote. */
+function invalidarAposLote(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: intimacoesKeys.all });
+  queryClient.invalidateQueries({ queryKey: ["tarefas-prazos"] });
+}
+
+export function useEncerrarPendenciasPeriodo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ inicio, fim }: { inicio: string | null; fim: string | null }) =>
+      intimacoesService.encerrarPendenciasPeriodo(inicio, fim),
+    onSuccess: () => invalidarAposLote(queryClient),
+  });
+}
+
+export function useArquivarIntimacoesPeriodo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ inicio, fim }: { inicio: string | null; fim: string | null }) =>
+      intimacoesService.arquivarIntimacoesPeriodo(inicio, fim),
+    onSuccess: () => invalidarAposLote(queryClient),
+  });
+}
+
+export function useExcluirIntimacoesPeriodo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ inicio, fim }: { inicio: string | null; fim: string | null }) =>
+      intimacoesService.excluirIntimacoesPeriodo(inicio, fim),
+    onSuccess: () => invalidarAposLote(queryClient),
+  });
+}
+
+export function useDesarquivarIntimacao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: ID) => intimacoesService.desarquivarIntimacao(id),
+    onSuccess: () => invalidarAposLote(queryClient),
   });
 }

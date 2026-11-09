@@ -45,6 +45,9 @@ const App = () => (
             <Route path="/painel/distribuicao" element={<PainelIntimacoes />} />
             <Route path="/painel/publicacao/:id" element={<PainelIntimacoes />} />
             <Route path="/painel/novo-processo" element={<PainelIntimacoes />} />
+            <Route path="/painel/encerrar-pendencias" element={<PainelIntimacoes />} />
+            <Route path="/painel/arquivar" element={<PainelIntimacoes />} />
+            <Route path="/painel/excluir" element={<PainelIntimacoes />} />
             <Route path="/esteira" element={<EsteiraPrazos />} />
             <Route path="/esteira/tarefa/:id" element={<EsteiraPrazos />} />
             <Route path="/esteira/novo-prazo" element={<EsteiraPrazos />} />

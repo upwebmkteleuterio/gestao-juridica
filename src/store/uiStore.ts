@@ -59,6 +59,7 @@ const FILTROS_INICIAIS: FiltroIntimacoes = {
   disponibilizacaoDe: "",
   disponibilizacaoAte: "",
   apenasMinhaPauta: false,
+  apenasArquivadas: false,
   advogadoId: null,
 };
 
@@ -137,6 +138,8 @@ export const useUiStore = create<UiState>()(
         return {
           ...estadoAtual,
           ...(salvo ?? {}),
+          /* Recortes salvos por versões anteriores não trazem campos novos. */
+          filtrosPainel: { ...FILTROS_INICIAIS, ...(salvo?.filtrosPainel ?? {}) },
           filtroEsteira: normalizarFiltroEsteira(filtroSalvo),
           abaEsteira: salvo?.abaEsteira === "arquivados" ? "arquivados" : "pipeline",
           esteiraIniciada: formatoAntigo ? false : salvo?.esteiraIniciada ?? estadoAtual.esteiraIniciada,

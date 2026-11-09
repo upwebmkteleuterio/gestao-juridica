@@ -1,0 +1,1 @@
+revoke all on function public.resumo_acoes_periodo(date, date), public.encerrar_pendencias_periodo(date, date), public.arquivar_intimacoes_periodo(date, date), public.excluir_intimacoes_periodo(date, date), public.desarquivar_intimacao(uuid) from public

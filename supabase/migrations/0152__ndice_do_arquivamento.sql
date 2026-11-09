@@ -1,0 +1,1 @@
+create index if not exists intimacoes_arquivado_em_idx on public.intimacoes (arquivado_em)

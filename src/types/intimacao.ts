@@ -37,6 +37,8 @@ export interface Intimacao {
   pendencias: string[];
   status_analise: StatusAnaliseIA;
   analisado_em: ISODate | null;
+  /** Preenchido quando a publicação sai da caixa de entrada (arquivada). */
+  arquivado_em: ISODate | null;
 }
 
 export type IntimacaoInput = Omit<Intimacao, "id">;
@@ -90,6 +92,13 @@ export interface ConsultaIntimacoes {
   status?: StatusFluxoIntimacao | "todos";
   /** `null`/`undefined` = todas as intimações. */
   advogadoId?: ID | null;
+  /** `true` = somente arquivadas; `false`/`undefined` = somente ativas. */
+  apenasArquivadas?: boolean;
+  /**
+   * Marco zero: quando informado, a consulta considera apenas publicações
+   * com data de referência a partir desta data.
+   */
+  marcoZero?: string | null;
   pagina?: number;
   tamanhoPagina?: number;
   ordenacao?: OrdenacaoConsulta<CampoOrdenacaoIntimacao>;
@@ -102,7 +111,18 @@ export interface FiltroIntimacoes {
   disponibilizacaoDe: string;
   disponibilizacaoAte: string;
   apenasMinhaPauta: boolean;
+  apenasArquivadas: boolean;
   advogadoId: ID | null;
+}
+
+/** Prévia das ações em lote por período (Tela 1 — gestor). */
+export interface ResultadoAcoesPeriodo {
+  /** Pendências de atribuição que seriam encerradas. */
+  encerrar: number;
+  /** Publicações que seriam arquivadas. */
+  arquivar: number;
+  /** Publicações que seriam excluídas definitivamente. */
+  excluir: number;
 }
 
 /** Indicadores do topo da Tela 1 (derivados no serviço). */

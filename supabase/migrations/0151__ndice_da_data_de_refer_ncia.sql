@@ -1,0 +1,1 @@
+create index if not exists intimacoes_data_referencia_idx on public.intimacoes (data_referencia)

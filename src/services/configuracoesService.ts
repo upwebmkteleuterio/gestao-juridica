@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ConfiguracaoSistema, ConfiguracaoSistemaInput } from "@/types";
 import { mensagemDeErro } from "./erros";
 
-const COLUNAS = "id, oabs_monitoradas, horario_cron_djen, prazo_padrao_dias_uteis, ia_modelo, ia_system_prompt, updated_at";
+const COLUNAS = "id, oabs_monitoradas, horario_cron_djen, prazo_padrao_dias_uteis, ia_modelo, ia_system_prompt, marco_zero, marco_zero_indicadores, marco_zero_lista, marco_zero_exportacao, updated_at";
 
 function normalizar(linha: ConfiguracaoSistema): ConfiguracaoSistema {
   return {
@@ -12,6 +12,10 @@ function normalizar(linha: ConfiguracaoSistema): ConfiguracaoSistema {
     prazo_padrao_dias_uteis: linha.prazo_padrao_dias_uteis ?? null,
     ia_modelo: linha.ia_modelo ?? "",
     ia_system_prompt: linha.ia_system_prompt ?? "",
+    marco_zero: linha.marco_zero ?? null,
+    marco_zero_indicadores: Boolean(linha.marco_zero_indicadores),
+    marco_zero_lista: Boolean(linha.marco_zero_lista),
+    marco_zero_exportacao: Boolean(linha.marco_zero_exportacao),
     updated_at: linha.updated_at ?? "",
   };
 }

@@ -144,6 +144,11 @@ export async function criarIntimacaoTeste(input: {
   advogadoId?: string | null;
   status?: "triagem" | "fila" | "dispensado";
   observacoes?: string | null;
+  /**
+   * Data de disponibilização do registro de apoio. Datas fora do período real
+   * de operação isolam o registro nas ações em lote por período.
+   */
+  dataDisponibilizacao?: string | null;
 }): Promise<string> {
   const supabase = clienteAdmin();
   const { data, error } = await comTimeout(
@@ -155,6 +160,7 @@ export async function criarIntimacaoTeste(input: {
         status_fluxo: input.status ?? "triagem",
         advogado_id: input.advogadoId ?? null,
         observacoes: input.observacoes ?? null,
+        data_disponibilizacao: input.dataDisponibilizacao ?? null,
         tribunal_sigla: "",
         orgao_julgador: "",
         acao_sugerida_ia: "",
@@ -284,4 +290,22 @@ export async function removerIntimacao(id: string): Promise<void> {
   const supabase = clienteAdmin();
   await supabase.from("tarefas_prazos").delete().eq("intimacao_id", id);
   await supabase.from("intimacoes").delete().eq("id", id);
+}
+
+/**
+ * Devolve o marco zero ao estado neutro. É uma configuração compartilhada:
+ * os testes que a alteram precisam restaurá-la mesmo em caso de falha.
+ */
+export async function limparMarcoZero(): Promise<void> {
+  const supabase = clienteAdmin();
+  const { error } = await supabase
+    .from("configuracoes_sistema")
+    .update({
+      marco_zero: null,
+      marco_zero_indicadores: false,
+      marco_zero_lista: false,
+      marco_zero_exportacao: false,
+    })
+    .eq("id", 1);
+  if (error) throw new Error(`Falha ao limpar o marco zero: ${error.message}`);
 }

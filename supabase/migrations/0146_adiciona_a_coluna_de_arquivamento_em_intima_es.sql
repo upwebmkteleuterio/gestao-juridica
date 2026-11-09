@@ -1,0 +1,1 @@
+alter table public.intimacoes add column if not exists arquivado_em timestamp with time zone

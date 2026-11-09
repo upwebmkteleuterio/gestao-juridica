@@ -10,6 +10,7 @@ import type {
   IntimacaoInput,
   OrdenacaoConsulta,
   PreviaDistribuicao,
+  ResultadoAcoesPeriodo,
   ResultadoAnaliseIA,
   ResultadoConsultaIntimacoes,
   ResultadoDevolucao,
@@ -18,7 +19,7 @@ import type {
 import { invocarFuncao, mensagemDeErro } from "./erros";
 import { criarRepositorioSupabase } from "./repositorioSupabase";
 
-const COLUNAS = "id, raw_id, numero_processo, tribunal_sigla, orgao_julgador, data_disponibilizacao, origem, observacoes, duplicado, acao_sugerida_ia, resumo_ia, prazo_extraido_texto, data_fatal_calculada, advogado_id, status_fluxo, distribuido_em, trecho_fundamentador, pendencias, status_analise, analisado_em";
+const COLUNAS = "id, raw_id, numero_processo, tribunal_sigla, orgao_julgador, data_disponibilizacao, origem, observacoes, duplicado, acao_sugerida_ia, resumo_ia, prazo_extraido_texto, data_fatal_calculada, advogado_id, status_fluxo, distribuido_em, trecho_fundamentador, pendencias, status_analise, analisado_em, arquivado_em";
 const COLUNAS_ANALISE = "id, raw_id, modelo, status, resumo, acao_sugerida, prazo_texto, prazo_data, trecho_fundamentador, pendencias, motivo_falha, duracao_ms, criado_em";
 const ORDENACAO_PADRAO: OrdenacaoConsulta<CampoOrdenacaoIntimacao> = {
   campo: "data_disponibilizacao",
@@ -47,6 +48,7 @@ function normalizar(linha: Intimacao): Intimacao {
     origem: linha.origem ?? "djen",
     observacoes: linha.observacoes ?? null,
     duplicado: Boolean(linha.duplicado),
+    arquivado_em: linha.arquivado_em ?? null,
   };
 }
 
@@ -69,6 +71,12 @@ function consultaBase(consulta: ConsultaIntimacoes = {}) {
   if (consulta.disponibilizacaoAte) query = query.lte("data_disponibilizacao", consulta.disponibilizacaoAte);
   if (consulta.status && consulta.status !== "todos") query = query.eq("status_fluxo", consulta.status);
   if (consulta.advogadoId) query = query.eq("advogado_id", consulta.advogadoId);
+  /* Arquivadas saem da caixa de entrada e vivem em uma visão própria. */
+  query = consulta.apenasArquivadas
+    ? query.not("arquivado_em", "is", null)
+    : query.is("arquivado_em", null);
+  /* Marco zero: recorte aplicado no banco (sem trazer linhas para filtrar). */
+  if (consulta.marcoZero) query = query.gte("data_referencia", consulta.marcoZero);
   return query;
 }
 
@@ -160,7 +168,7 @@ export const intimacoesService = {
 
   async contarPendentes(): Promise<number> {
     const { count, error } = await supabase.from("intimacoes").select("id", { count: "exact", head: true })
-      .eq("status_fluxo", "triagem").is("advogado_id", null);
+      .eq("status_fluxo", "triagem").is("advogado_id", null).is("arquivado_em", null);
     if (error) throw new Error(mensagemDeErro(error));
     return count ?? 0;
   },
@@ -171,16 +179,29 @@ export const intimacoesService = {
     return [...new Set((data ?? []).map((linha) => linha.tribunal_sigla).filter((sigla): sigla is string => Boolean(sigla)))].sort((a, b) => a.localeCompare(b));
   },
 
-  async obterIndicadores(): Promise<IndicadoresIntimacoes> {
-    const { data: ultima, error: erroUltima } = await supabase.from("intimacoes").select("data_disponibilizacao")
+  /**
+   * Indicadores do topo. Contagens feitas no banco (`head: true`), sem trazer
+   * linhas — o recorte do marco zero também é resolvido no servidor.
+   */
+  async obterIndicadores(marcoZero?: string | null): Promise<IndicadoresIntimacoes> {
+    const marco = marcoZero ?? null;
+    const base = () => {
+      let query = supabase.from("intimacoes")
+        .select("id", { count: "exact", head: true })
+        .is("arquivado_em", null);
+      if (marco) query = query.gte("data_referencia", marco);
+      return query;
+    };
+
+    let consultaUltima = supabase.from("intimacoes").select("data_disponibilizacao");
+    if (marco) consultaUltima = consultaUltima.gte("data_referencia", marco);
+    const { data: ultima, error: erroUltima } = await consultaUltima
       .order("data_disponibilizacao", { ascending: false, nullsFirst: false }).limit(1).maybeSingle();
     if (erroUltima) throw new Error(mensagemDeErro(erroUltima));
+
     const dataReferencia = ultima?.data_disponibilizacao ?? "";
     if (!dataReferencia) {
-      const { count, error } = await supabase.from("intimacoes")
-        .select("id", { count: "exact", head: true })
-        .eq("status_fluxo", "triagem")
-        .is("advogado_id", null);
+      const { count, error } = await base().eq("status_fluxo", "triagem").is("advogado_id", null);
       if (error) throw new Error(mensagemDeErro(error));
       return { novasHoje: 0, dataReferencia: "", criticosSemana: 0, pendentesAtribuicao: count ?? 0 };
     }
@@ -188,12 +209,52 @@ export const intimacoesService = {
     fimSemana.setUTCDate(fimSemana.getUTCDate() + DIAS_SEMANA);
     const dataFim = fimSemana.toISOString().slice(0, 10);
     const [novas, criticos, pendentes] = await Promise.all([
-      supabase.from("intimacoes").select("id", { count: "exact", head: true }).eq("data_disponibilizacao", dataReferencia),
-      supabase.from("intimacoes").select("id", { count: "exact", head: true }).gte("data_fatal_calculada", dataReferencia).lte("data_fatal_calculada", dataFim),
-      supabase.from("intimacoes").select("id", { count: "exact", head: true }).eq("status_fluxo", "triagem").is("advogado_id", null),
+      base().eq("data_disponibilizacao", dataReferencia),
+      base().gte("data_fatal_calculada", dataReferencia).lte("data_fatal_calculada", dataFim),
+      base().eq("status_fluxo", "triagem").is("advogado_id", null),
     ]);
     for (const result of [novas, criticos, pendentes]) if (result.error) throw new Error(mensagemDeErro(result.error));
     return { novasHoje: novas.count ?? 0, dataReferencia, criticosSemana: criticos.count ?? 0, pendentesAtribuicao: pendentes.count ?? 0 };
+  },
+
+  /** Prévia (contagem) das ações em lote do gestor, resolvida no banco. */
+  async resumoAcoesPeriodo(inicio: string | null, fim: string | null): Promise<ResultadoAcoesPeriodo> {
+    const { data, error } = await supabase.rpc("resumo_acoes_periodo", { p_inicio: inicio, p_fim: fim });
+    if (error) throw new Error(mensagemDeErro(error));
+    const resumo = (data ?? {}) as Partial<ResultadoAcoesPeriodo>;
+    return {
+      encerrar: resumo.encerrar ?? 0,
+      arquivar: resumo.arquivar ?? 0,
+      excluir: resumo.excluir ?? 0,
+    };
+  },
+
+  /** Encerra (dispensa) as pendências de atribuição do período. */
+  async encerrarPendenciasPeriodo(inicio: string | null, fim: string | null): Promise<number> {
+    const { data, error } = await supabase.rpc("encerrar_pendencias_periodo", { p_inicio: inicio, p_fim: fim });
+    if (error) throw new Error(mensagemDeErro(error));
+    return Number(data ?? 0);
+  },
+
+  /** Arquiva as publicações do período, tirando-as da caixa de entrada. */
+  async arquivarIntimacoesPeriodo(inicio: string | null, fim: string | null): Promise<number> {
+    const { data, error } = await supabase.rpc("arquivar_intimacoes_periodo", { p_inicio: inicio, p_fim: fim });
+    if (error) throw new Error(mensagemDeErro(error));
+    return Number(data ?? 0);
+  },
+
+  /** Exclui definitivamente as publicações do período. */
+  async excluirIntimacoesPeriodo(inicio: string | null, fim: string | null): Promise<number> {
+    const { data, error } = await supabase.rpc("excluir_intimacoes_periodo", { p_inicio: inicio, p_fim: fim });
+    if (error) throw new Error(mensagemDeErro(error));
+    return Number(data ?? 0);
+  },
+
+  /** Devolve uma publicação arquivada para a caixa de entrada. */
+  async desarquivarIntimacao(id: ID): Promise<Intimacao> {
+    const { data, error } = await supabase.rpc("desarquivar_intimacao", { p_id: id });
+    if (error) throw new Error(mensagemDeErro(error));
+    return normalizar(data as unknown as Intimacao);
   },
 
   async calcularPrevia(params: { intimacaoIds: ID[]; advogadoIds: ID[]; criterio: CriterioDistribuicao }): Promise<PreviaDistribuicao> {
