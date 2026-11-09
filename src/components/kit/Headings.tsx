@@ -7,6 +7,11 @@ export interface PageHeadingProps {
   descricao?: string;
   acoes?: ReactNode;
   className?: string;
+  /**
+   * Largura máxima do bloco de descrição. O bloco cede espaço para as ações,
+   * que nunca quebram de linha por causa de um texto longo.
+   */
+  classeDescricao?: string;
 }
 
 /** Cabeçalho de página — mesmo alinhamento em todos os módulos. */
@@ -16,6 +21,7 @@ export function PageHeading({
   descricao,
   acoes,
   className,
+  classeDescricao = "max-w-2xl",
 }: PageHeadingProps) {
   return (
     <div
@@ -24,7 +30,7 @@ export function PageHeading({
         className,
       )}
     >
-      <div className="max-w-2xl">
+      <div className={cn("min-w-0 flex-1", classeDescricao)}>
         {eyebrow ? (
           <p className="eyebrow mb-2 text-gold-600 dark:text-gold-400">
             {eyebrow}

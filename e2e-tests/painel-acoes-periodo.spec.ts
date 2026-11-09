@@ -91,17 +91,27 @@ test("marco zero recorta o painel e pode ser removido", async ({ page }) => {
     page.getByRole("heading", { name: "Painel de Intimações" }),
   ).toBeVisible({ timeout: 30_000 });
 
+  await page.getByRole("button", { name: "Mais ações do painel" }).click();
+  await page.getByRole("menuitem", { name: "Marco zero" }).click();
+
+  const modal = page.getByRole("dialog", { name: "Marco zero do painel" });
+  await expect(modal).toBeVisible();
+
   await page.locator("#marco-zero-data").fill("2099-12-31");
   await page.getByRole("checkbox", { name: "Indicadores" }).check();
   await page.getByRole("checkbox", { name: "Lista" }).check();
-  await page.getByRole("button", { name: "Aplicar marco" }).click();
+  await modal.getByRole("button", { name: "Aplicar marco" }).click();
+  await expect(modal).toBeHidden({ timeout: 30_000 });
 
   // Com o marco no futuro, nenhuma publicação entra no recorte.
   await expect(page.getByText("Nenhuma intimação encontrada")).toBeVisible({
     timeout: 30_000,
   });
 
-  await page.getByRole("button", { name: "Remover" }).click();
+  // O marco vigente fica visível no painel e pode ser removido pelo mesmo modal.
+  await page.getByRole("button", { name: /^Marco zero: / }).click();
+  await expect(modal).toBeVisible();
+  await modal.getByRole("button", { name: "Remover marco" }).click();
 
   await expect(page.getByText("Nenhuma intimação encontrada")).toBeHidden({
     timeout: 30_000,

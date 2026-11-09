@@ -49,7 +49,9 @@ test("exportar planilha gera um CSV com todos os registros e as novas colunas", 
     };
   });
 
-  await page.getByRole("button", { name: /Exportar planilha/i }).click();
+  // A exportação vive no menu de ações secundárias, ao lado de "Incluir processo".
+  await page.getByRole("button", { name: "Mais ações do painel" }).click();
+  await page.getByRole("menuitem", { name: "Exportar planilha" }).click();
 
   await expect
     .poll(

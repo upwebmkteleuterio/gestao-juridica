@@ -34,7 +34,7 @@
 # Rotas
 
 - Públicas: `/login`, `/auth/callback` e `/redefinir-senha`.
-- Protegidas por `ProtectedRoute` + `AppShell` (`<Outlet />`): `/painel`, `/painel/distribuicao`, `/painel/publicacao/:id`, `/painel/novo-processo`, `/painel/encerrar-pendencias`, `/painel/arquivar`, `/painel/excluir`, `/esteira`, `/esteira/tarefa/:id`, `/esteira/novo-prazo`, `/djen`, `/djen/nova-consulta`, `/djen/payload/:id`, `/equipe`, `/equipe/novo`, `/equipe/advogado/:id`.
+- Protegidas por `ProtectedRoute` + `AppShell` (`<Outlet />`): `/painel`, `/painel/distribuicao`, `/painel/publicacao/:id`, `/painel/novo-processo`, `/painel/marco-zero`, `/painel/encerrar-pendencias`, `/painel/arquivar`, `/painel/excluir`, `/esteira`, `/esteira/tarefa/:id`, `/esteira/novo-prazo`, `/djen`, `/djen/nova-consulta`, `/djen/payload/:id`, `/equipe`, `/equipe/novo`, `/equipe/advogado/:id`.
 - Telas de modal/painel (1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1) são **sobreposições route-driven**: a rota base renderiza a tela de listagem e a rota da sobreposição renderiza a mesma tela com o modal/painel aberto, preservando o contexto. Fechar sempre volta para a rota base.
 - Perfis de acesso: `admin` (sócio/gestor) e `advogado`. Consulta DJEN e Equipe são exclusivas do admin.
 

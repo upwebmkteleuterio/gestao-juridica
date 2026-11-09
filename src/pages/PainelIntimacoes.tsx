@@ -6,6 +6,7 @@ import {
   Download,
   Eraser,
   Filter,
+  Flag,
   Inbox,
   ListChecks,
   Plus,
@@ -30,6 +31,7 @@ import {
   KpiCard,
   MenuAcoes,
   PageHeading,
+  type ItemMenuAcoes,
   Pagination,
   Panel,
   PanelHeader,
@@ -53,7 +55,7 @@ import {
   AcoesPeriodoModal,
   DetalhePublicacaoPanel,
   DistribuicaoModal,
-  MarcoZeroForm,
+  MarcoZeroModal,
   NovoProcessoModal,
   ObservacaoCell,
   type TipoAcaoPeriodo,
@@ -112,6 +114,7 @@ export default function PainelIntimacoes() {
   const buscaDebounced = useValorDebounced(filtros.busca, 350);
   const rotaDistribuicao = pathname === "/painel/distribuicao";
   const rotaNovoProcesso = pathname === "/painel/novo-processo";
+  const rotaMarcoZero = pathname === "/painel/marco-zero";
   const rotaAcao: TipoAcaoPeriodo | null =
     pathname === "/painel/encerrar-pendencias"
       ? "encerrar"
@@ -282,6 +285,43 @@ export default function PainelIntimacoes() {
     }
   }
 
+  /* Ações secundárias: o que não é decisão principal vive no menu de três
+     pontos, mantendo o cabeçalho enxuto. */
+  const itensMenu: ItemMenuAcoes[] = [
+    {
+      rotulo: "Exportar planilha",
+      icone: <Download className="h-3.5 w-3.5" aria-hidden="true" />,
+      onSelecionar: executarExportacao,
+    },
+    {
+      rotulo: "Marco zero",
+      icone: <Flag className="h-3.5 w-3.5" aria-hidden="true" />,
+      onSelecionar: () => navigate("/painel/marco-zero"),
+    },
+  ];
+  if (ehAdmin) {
+    itensMenu.push(
+      {
+        rotulo: "Encerrar pendências anteriores",
+        icone: <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />,
+        separadorAntes: true,
+        onSelecionar: () => navigate("/painel/encerrar-pendencias"),
+      },
+      {
+        rotulo: "Arquivar publicações do período",
+        icone: <Archive className="h-3.5 w-3.5" aria-hidden="true" />,
+        onSelecionar: () => navigate("/painel/arquivar"),
+      },
+      {
+        rotulo: "Excluir publicações do período",
+        icone: <Eraser className="h-3.5 w-3.5" aria-hidden="true" />,
+        variante: "perigo",
+        separadorAntes: true,
+        onSelecionar: () => navigate("/painel/excluir"),
+      },
+    );
+  }
+
   const recorteAtivo =
     Boolean(buscaDebounced) ||
     Boolean(filtros.tribunal) ||
@@ -313,6 +353,7 @@ export default function PainelIntimacoes() {
         eyebrow="Painel do gestor · Tela 1"
         titulo="Painel de Intimações"
         descricao="Ponto de triagem diária das comunicações processuais ingeridas automaticamente do DJEN. Centraliza novas publicações e permite auditar a classificação gerada pela IA."
+        classeDescricao="max-w-md"
         acoes={
           <>
             {ehAdmin ? (
@@ -330,38 +371,7 @@ export default function PainelIntimacoes() {
                 Incluir processo
               </Button>
             ) : null}
-            <Button
-              variant="secondary"
-              loading={exportar.isPending}
-              onClick={executarExportacao}
-            >
-              <Download className="h-3.5 w-3.5" aria-hidden="true" />
-              Exportar planilha
-            </Button>
-            {ehAdmin ? (
-              <MenuAcoes
-                ariaLabel="Mais ações do painel"
-                itens={[
-                  {
-                    rotulo: "Encerrar pendências anteriores",
-                    icone: <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />,
-                    onSelecionar: () => navigate("/painel/encerrar-pendencias"),
-                  },
-                  {
-                    rotulo: "Arquivar publicações do período",
-                    icone: <Archive className="h-3.5 w-3.5" aria-hidden="true" />,
-                    onSelecionar: () => navigate("/painel/arquivar"),
-                  },
-                  {
-                    rotulo: "Excluir publicações do período",
-                    icone: <Eraser className="h-3.5 w-3.5" aria-hidden="true" />,
-                    variante: "perigo",
-                    separadorAntes: true,
-                    onSelecionar: () => navigate("/painel/excluir"),
-                  },
-                ]}
-              />
-            ) : null}
+            <MenuAcoes ariaLabel="Mais ações do painel" itens={itensMenu} />
           </>
         }
       />
@@ -416,17 +426,38 @@ export default function PainelIntimacoes() {
           titulo="Filtros rápidos"
           descricao="Busca, tribunal e período são aplicados sobre as publicações capturadas."
           acoes={
-            <SegmentedControl
-              valor={filtros.apenasMinhaPauta ? "minha" : "todas"}
-              onChange={(valor) =>
-                setFiltros({ apenasMinhaPauta: valor === "minha" })
-              }
-              ariaLabel="Visão da listagem"
-              opcoes={[
-                { valor: "todas", rotulo: "Todas as intimações" },
-                { valor: "minha", rotulo: "Minha pauta" },
-              ]}
-            />
+            <>
+              {/* O marco zero vive no menu de ações, mas precisa ficar visível
+                  enquanto estiver recortando o painel. */}
+              {marcoZero ? (
+                ehAdmin ? (
+                  <Button
+                    variant="gold"
+                    size="sm"
+                    onClick={() => navigate("/painel/marco-zero")}
+                  >
+                    <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+                    Marco zero: {formatarData(marcoZero)}
+                  </Button>
+                ) : (
+                  <Badge variant="gold">
+                    <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+                    Marco zero: {formatarData(marcoZero)}
+                  </Badge>
+                )
+              ) : null}
+              <SegmentedControl
+                valor={filtros.apenasMinhaPauta ? "minha" : "todas"}
+                onChange={(valor) =>
+                  setFiltros({ apenasMinhaPauta: valor === "minha" })
+                }
+                ariaLabel="Visão da listagem"
+                opcoes={[
+                  { valor: "todas", rotulo: "Todas as intimações" },
+                  { valor: "minha", rotulo: "Minha pauta" },
+                ]}
+              />
+            </>
           }
         />
         <div className="grid gap-4 p-5 lg:grid-cols-4">
@@ -465,7 +496,6 @@ export default function PainelIntimacoes() {
             idAte="filtro-ate"
           />
         </div>
-        <MarcoZeroForm ehAdmin={ehAdmin} />
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
           <span className="text-[10px] text-muted-foreground">
             {recorteAtivo
@@ -784,6 +814,13 @@ export default function PainelIntimacoes() {
           onClose={() => navigate("/painel")}
         />
       ) : null}
+
+      {/* Marco zero do escritório */}
+      <MarcoZeroModal
+        open={rotaMarcoZero}
+        ehAdmin={Boolean(ehAdmin)}
+        onClose={() => navigate("/painel")}
+      />
 
       {/* Ações administrativas em lote sobre um período */}
       {ehAdmin ? (
