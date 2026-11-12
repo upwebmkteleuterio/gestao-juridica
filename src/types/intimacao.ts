@@ -6,6 +6,7 @@ import type {
   OrigemIntimacao,
   StatusAnaliseIA,
   StatusFluxoIntimacao,
+  TipoNumeracao,
 } from "./common";
 
 /**
@@ -17,6 +18,8 @@ export interface Intimacao {
   id: ID;
   raw_id: ID | null;
   numero_processo: string;
+  /** Formato da numeração (CNJ ou livre) — sempre rotulado, nunca inferido. */
+  tipo_numeracao: TipoNumeracao;
   tribunal_sigla: string;
   orgao_julgador: string;
   data_disponibilizacao: DateOnly | null;
@@ -90,6 +93,8 @@ export interface ConsultaIntimacoes {
   disponibilizacaoDe?: string;
   disponibilizacaoAte?: string;
   status?: StatusFluxoIntimacao | "todos";
+  /** `"todos"`/`undefined` = todos os formatos de numeração. */
+  tipoNumeracao?: TipoNumeracao | "todos";
   /** `null`/`undefined` = todas as intimações. */
   advogadoId?: ID | null;
   /** `true` = somente arquivadas; `false`/`undefined` = somente ativas. */
@@ -112,6 +117,7 @@ export interface FiltroIntimacoes {
   disponibilizacaoAte: string;
   apenasMinhaPauta: boolean;
   apenasArquivadas: boolean;
+  tipoNumeracao: TipoNumeracao | "todos";
   advogadoId: ID | null;
 }
 

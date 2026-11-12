@@ -1,0 +1,1 @@
+alter table public.intimacoes add constraint intimacoes_tipo_numeracao_check check (tipo_numeracao in ('cnj', 'inss', 'inquerito', 'outro'))

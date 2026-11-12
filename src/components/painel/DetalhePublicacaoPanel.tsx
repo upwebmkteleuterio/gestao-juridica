@@ -31,6 +31,7 @@ import {
   useAdvogadosVisiveis,
   useAnalisarPublicacao,
   useAnalisesIa,
+  useAtualizarTipoNumeracaoIntimacao,
   useDispensarIntimacao,
   useEnviarParaEsteira,
   useIntimacao,
@@ -40,8 +41,10 @@ import {
 } from "@/hooks";
 import { contarDiasUteis } from "@/lib/datas";
 import { formatarData, formatarDataHora, formatarNumeroProcesso } from "@/lib/format";
+import { TIPOS_NUMERACAO } from "@/lib/numeracao";
 import { somarDiasUteis } from "@/lib/prazos";
 import { useUsuarioAtual } from "@/hooks";
+import type { TipoNumeracao } from "@/types";
 import { ObservacaoCell } from "./ObservacaoCell";
 
 export interface DetalhePublicacaoPanelProps {
@@ -74,6 +77,7 @@ export function DetalhePublicacaoPanel({
   const dispensar = useDispensarIntimacao();
   const reativar = useReativarIntimacao();
   const registrarEvento = useRegistrarEvento();
+  const atualizarTipoNumeracao = useAtualizarTipoNumeracaoIntimacao();
   const analisar = useAnalisarPublicacao();
   const analises = useAnalisesIa(intimacao?.raw_id ?? undefined);
 
@@ -334,8 +338,10 @@ export function DetalhePublicacaoPanel({
             aria-label="Copiar número do processo"
             onClick={() =>
               copiar(
-                intimacao.numero_processo.replace(/\D/g, ""),
-                "Número do processo copiado sem formatação.",
+                intimacao.numero_processo,
+                intimacao.tipo_numeracao === "cnj"
+                  ? "Número do processo copiado sem formatação."
+                  : "Número do processo copiado como está no documento.",
               )
             }
           >
@@ -403,9 +409,46 @@ export function DetalhePublicacaoPanel({
           ) : null}
 
           {intimacao.origem === "manual" ? (
-            <section>
-              <p className="label-kit mb-3">Observações</p>
-              <ObservacaoCell intimacaoId={intimacao.id} observacao={intimacao.observacoes} />
+            <section className="space-y-5">
+              <div>
+                <p className="label-kit mb-3">Numeração</p>
+                <FormField
+                  label="Tipo de numeração"
+                  htmlFor="painel-tipo-numeracao"
+                  hint="Corrija aqui se o processo foi incluído com o tipo errado."
+                >
+                  <Select
+                    id="painel-tipo-numeracao"
+                    data-testid="detalhe-tipo-numeracao"
+                    value={intimacao.tipo_numeracao}
+                    disabled={atualizarTipoNumeracao.isPending}
+                    onChange={(evento) =>
+                      atualizarTipoNumeracao.mutate(
+                        { id: intimacao.id, tipo_numeracao: evento.target.value as TipoNumeracao },
+                        {
+                          onSuccess: () => toast.success("Tipo de numeração atualizado."),
+                          onError: (erro) =>
+                            toast.error(
+                              erro instanceof Error
+                                ? erro.message
+                                : "Não foi possível atualizar o tipo de numeração.",
+                            ),
+                        },
+                      )
+                    }
+                  >
+                    {TIPOS_NUMERACAO.map((opcao) => (
+                      <option key={opcao.valor} value={opcao.valor}>
+                        {opcao.rotulo}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+              </div>
+              <div>
+                <p className="label-kit mb-3">Observações</p>
+                <ObservacaoCell intimacaoId={intimacao.id} observacao={intimacao.observacoes} />
+              </div>
             </section>
           ) : (
             <>

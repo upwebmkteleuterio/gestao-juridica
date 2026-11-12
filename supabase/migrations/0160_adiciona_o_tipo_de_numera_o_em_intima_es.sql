@@ -1,0 +1,1 @@
+alter table public.intimacoes add column if not exists tipo_numeracao text not null default 'cnj'

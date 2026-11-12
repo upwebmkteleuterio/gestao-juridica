@@ -30,23 +30,41 @@ test("incluir processo manual valida o CNJ, avisa duplicidade e abre o existente
     name: "Intimações capturadas do DJEN",
   });
 
-  // 1) Validação: menos de 20 dígitos é recusado.
   await page.getByRole("button", { name: /Incluir processo/ }).click();
   const modal = page.getByRole("dialog", {
     name: "Incluir processo manualmente",
   });
   await expect(modal).toBeVisible();
 
-  await modal.locator("#novo-processo-cnj").fill("12345");
+  // 0) O tipo de numeração é obrigatório e começa sem seleção.
+  await modal.getByRole("button", { name: "Incluir processo" }).click();
+  await expect(modal.getByText("Escolha o tipo de numeração.")).toBeVisible();
+
+  // 1) Validação: no padrão CNJ, menos de 20 dígitos é recusado.
+  await modal.getByTestId("novo-processo-tipo").selectOption("cnj");
+  await modal.getByTestId("novo-processo-numero").fill("12345");
   await modal.getByRole("button", { name: "Incluir processo" }).click();
   await expect(
     modal.getByText("Informe um número CNJ com 20 dígitos."),
   ).toBeVisible();
 
   // 2) Inclusão válida com observação.
-  await modal.locator("#novo-processo-cnj").fill(numero);
+  await modal.getByTestId("novo-processo-numero").fill(numero);
   await modal.locator("#novo-processo-observacoes").fill("Protocolo físico pendente");
   await modal.getByRole("button", { name: "Incluir processo" }).click();
+  await page.waitForTimeout(2000);
+  expect(
+    {
+      numero: await modal.getByTestId("novo-processo-numero").inputValue(),
+      tipo: await modal.getByTestId("novo-processo-tipo").inputValue(),
+      botaoDesabilitado: await modal
+        .getByRole("button", { name: "Incluir processo" })
+        .isDisabled(),
+      toasts: await page.locator("[data-sonner-toast]").allInnerTexts(),
+      fimDoCorpo: (await page.locator("body").innerText()).split("\n").slice(-5),
+    },
+    "DIAGNOSTICO APOS SALVAR",
+  ).toBe(null);
   await expect(modal).toBeHidden();
 
   await page.locator("#filtro-busca").fill(numero);
@@ -59,7 +77,8 @@ test("incluir processo manual valida o CNJ, avisa duplicidade e abre o existente
   const modalDuplicado = page.getByRole("dialog", {
     name: "Incluir processo manualmente",
   });
-  await modalDuplicado.locator("#novo-processo-cnj").fill(numero);
+  await modalDuplicado.getByTestId("novo-processo-tipo").selectOption("cnj");
+  await modalDuplicado.getByTestId("novo-processo-numero").fill(numero);
   await expect(
     modalDuplicado.getByText("Este número já está na lista"),
   ).toBeVisible();

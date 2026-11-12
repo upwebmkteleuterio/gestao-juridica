@@ -14,6 +14,13 @@ export type PerfilUsuario = "admin" | "advogado";
 /** Origem de uma intimação exibida no painel. */
 export type OrigemIntimacao = "djen" | "manual";
 
+/**
+ * Formato da numeração de um processo/procedimento.
+ * `cnj` é o único com padrão definido (máscara e validação); os demais são
+ * campo livre e existem para que o painel diga de que tipo é o número.
+ */
+export type TipoNumeracao = "cnj" | "inss" | "inquerito" | "outro";
+
 /** Status do processamento da IA sobre o payload bruto do DJEN. */
 export type StatusAnaliseIA = "pendente" | "sucesso" | "falha";
 

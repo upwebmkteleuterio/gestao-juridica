@@ -1,0 +1,1 @@
+alter table public.intimacoes add column if not exists numero_processo_normalizado text generated always as (upper(regexp_replace(numero_processo, '[^0-9A-Za-z]', '', 'g'))) stored

@@ -60,6 +60,7 @@ const FILTROS_INICIAIS: FiltroIntimacoes = {
   disponibilizacaoAte: "",
   apenasMinhaPauta: false,
   apenasArquivadas: false,
+  tipoNumeracao: "todos",
   advogadoId: null,
 };
 

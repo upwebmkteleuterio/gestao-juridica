@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { expect, type Page } from "@playwright/test";
+import { normalizarNumero } from "../../src/lib/numeracao";
 
 /**
  * Fixtures para os testes ponta a ponta do sistema Magalhães & Gomes.
@@ -277,12 +278,22 @@ export function mascararCnj(numero: string): string {
   return saida;
 }
 
-/** Remove um processo de teste e as tarefas associadas (limpeza de dados). */
+/**
+ * Remove um processo de teste e as tarefas associadas (limpeza de dados).
+ * As intimações saem pelo número normalizado, o que funciona tanto para o
+ * padrão CNJ quanto para a numeração livre (INSS, inquérito etc.).
+ */
 export async function limparProcessoPorNumero(numero: string): Promise<void> {
   const supabase = clienteAdmin();
   const digitos = numero.replace(/\D/g, "");
-  await supabase.from("tarefas_prazos").delete().eq("numero_processo", digitos);
-  await supabase.from("intimacoes").delete().eq("numero_processo", digitos);
+  await supabase
+    .from("tarefas_prazos")
+    .delete()
+    .in("numero_processo", Array.from(new Set([digitos, numero])));
+  await supabase
+    .from("intimacoes")
+    .delete()
+    .eq("numero_processo_normalizado", normalizarNumero(numero));
 }
 
 /** Remove uma intimação de apoio pelo id. */

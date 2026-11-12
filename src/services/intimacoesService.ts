@@ -15,11 +15,13 @@ import type {
   ResultadoConsultaIntimacoes,
   ResultadoDevolucao,
   ResultadoDistribuicao,
+  TipoNumeracao,
 } from "@/types";
+import { normalizarNumero } from "@/lib/numeracao";
 import { invocarFuncao, mensagemDeErro } from "./erros";
 import { criarRepositorioSupabase } from "./repositorioSupabase";
 
-const COLUNAS = "id, raw_id, numero_processo, tribunal_sigla, orgao_julgador, data_disponibilizacao, origem, observacoes, duplicado, acao_sugerida_ia, resumo_ia, prazo_extraido_texto, data_fatal_calculada, advogado_id, status_fluxo, distribuido_em, trecho_fundamentador, pendencias, status_analise, analisado_em, arquivado_em";
+const COLUNAS = "id, raw_id, numero_processo, tipo_numeracao, tribunal_sigla, orgao_julgador, data_disponibilizacao, origem, observacoes, duplicado, acao_sugerida_ia, resumo_ia, prazo_extraido_texto, data_fatal_calculada, advogado_id, status_fluxo, distribuido_em, trecho_fundamentador, pendencias, status_analise, analisado_em, arquivado_em";
 const COLUNAS_ANALISE = "id, raw_id, modelo, status, resumo, acao_sugerida, prazo_texto, prazo_data, trecho_fundamentador, pendencias, motivo_falha, duracao_ms, criado_em";
 const ORDENACAO_PADRAO: OrdenacaoConsulta<CampoOrdenacaoIntimacao> = {
   campo: "data_disponibilizacao",
@@ -37,6 +39,7 @@ const CAMPOS_ORDENAVEIS: Record<CampoOrdenacaoIntimacao, string> = {
 function normalizar(linha: Intimacao): Intimacao {
   return {
     ...linha,
+    tipo_numeracao: linha.tipo_numeracao ?? "cnj",
     tribunal_sigla: linha.tribunal_sigla ?? "",
     orgao_julgador: linha.orgao_julgador ?? "",
     acao_sugerida_ia: linha.acao_sugerida_ia ?? "",
@@ -62,11 +65,16 @@ function consultaBase(consulta: ConsultaIntimacoes = {}) {
   let query = supabase.from("intimacoes").select(COLUNAS, { count: "exact" });
   const busca = consulta.busca?.trim().replace(/[,()%*\\"]/g, "").trim() ?? "";
   if (busca) {
+    /* A segunda variação ignora pontuação, então "123452024" encontra
+       "12345/2024" — o número pode ser digitado como veio do documento. */
     const digitos = busca.replace(/\D/g, "");
-    const buscaProcesso = digitos ? `,numero_processo.ilike.*${digitos}*` : "";
+    const buscaProcesso = digitos ? `,numero_processo_normalizado.ilike.*${digitos}*` : "";
     query = query.or(`numero_processo.ilike.*${busca}*${buscaProcesso},tribunal_sigla.ilike.*${busca}*,orgao_julgador.ilike.*${busca}*,acao_sugerida_ia.ilike.*${busca}*,resumo_ia.ilike.*${busca}*`);
   }
   if (consulta.tribunal) query = query.eq("tribunal_sigla", consulta.tribunal);
+  if (consulta.tipoNumeracao && consulta.tipoNumeracao !== "todos") {
+    query = query.eq("tipo_numeracao", consulta.tipoNumeracao);
+  }
   if (consulta.disponibilizacaoDe) query = query.gte("data_disponibilizacao", consulta.disponibilizacaoDe);
   if (consulta.disponibilizacaoAte) query = query.lte("data_disponibilizacao", consulta.disponibilizacaoAte);
   if (consulta.status && consulta.status !== "todos") query = query.eq("status_fluxo", consulta.status);
@@ -110,10 +118,13 @@ export const intimacoesService = {
     return { dados: (dados as unknown as Intimacao[]).map(normalizar), total, pagina, tamanhoPagina, totalPaginas };
   },
 
+  /** Procura por um número já existente, ignorando a pontuação digitada. */
   async existeNumero(numero: string): Promise<{ id: ID; numero_processo: string; created_at: string; origem: Intimacao["origem"] } | null> {
+    const normalizado = normalizarNumero(numero);
+    if (!normalizado) return null;
     const { data, error } = await supabase.from("intimacoes")
       .select("id, numero_processo, created_at, origem")
-      .eq("numero_processo", numero.replace(/\D/g, ""))
+      .eq("numero_processo_normalizado", normalizado)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -121,10 +132,21 @@ export const intimacoesService = {
     return data as { id: ID; numero_processo: string; created_at: string; origem: Intimacao["origem"] } | null;
   },
 
-  async criarProcessoManual(input: { numero_processo: string; observacoes: string | null; duplicado: boolean }): Promise<Intimacao> {
+  async criarProcessoManual(input: {
+    numero_processo: string;
+    tipo_numeracao: TipoNumeracao;
+    observacoes: string | null;
+    duplicado: boolean;
+  }): Promise<Intimacao> {
+    /* Só o CNJ é guardado como 20 dígitos; os demais formatos ficam como
+       digitados, porque é assim que aparecem no documento. */
+    const numero = input.tipo_numeracao === "cnj"
+      ? input.numero_processo.replace(/\D/g, "")
+      : input.numero_processo.replace(/\s+/g, " ").trim();
     const { data, error } = await supabase.from("intimacoes").insert({
       origem: "manual",
-      numero_processo: input.numero_processo.replace(/\D/g, ""),
+      numero_processo: numero,
+      tipo_numeracao: input.tipo_numeracao,
       observacoes: input.observacoes,
       duplicado: input.duplicado,
       raw_id: null,

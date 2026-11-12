@@ -50,6 +50,7 @@ import {
   TableRow,
   TableToolbar,
   TableWrap,
+  TipoNumeracaoBadge,
 } from "@/components/kit";
 import {
   AcoesPeriodoModal,
@@ -80,10 +81,11 @@ import {
   formatarNumeroProcesso,
   truncar,
 } from "@/lib/format";
+import { TIPOS_NUMERACAO, rotuloTipoNumeracao } from "@/lib/numeracao";
 import { somarDiasUteis } from "@/lib/prazos";
 import { useUsuarioAtual } from "@/hooks";
 import { useUiStore } from "@/store";
-import type { ConsultaIntimacoes, ID } from "@/types";
+import type { ConsultaIntimacoes, ID, TipoNumeracao } from "@/types";
 
 const TAMANHO_PAGINA = 8;
 const COLUNAS = 10;
@@ -149,6 +151,7 @@ export default function PainelIntimacoes() {
   }, [
     buscaDebounced,
     filtros.tribunal,
+    filtros.tipoNumeracao,
     filtros.disponibilizacaoDe,
     filtros.disponibilizacaoAte,
     filtros.apenasMinhaPauta,
@@ -160,6 +163,7 @@ export default function PainelIntimacoes() {
       () => ({
         busca: buscaDebounced,
         tribunal: filtros.tribunal,
+        tipoNumeracao: filtros.tipoNumeracao,
         disponibilizacaoDe: filtros.disponibilizacaoDe,
         disponibilizacaoAte: filtros.disponibilizacaoAte,
         advogadoId: filtros.apenasMinhaPauta ? (usuario?.id ?? null) : null,
@@ -231,6 +235,7 @@ export default function PainelIntimacoes() {
       const conteudo = gerarCsv(
         [
           "Processo",
+          "Tipo de numeração",
           "Tribunal",
           "Órgão / Vara",
           "Disponibilização",
@@ -244,6 +249,7 @@ export default function PainelIntimacoes() {
         ],
         dados.map((item) => [
           formatarNumeroProcesso(item.numero_processo),
+          rotuloTipoNumeracao(item.tipo_numeracao),
           item.tribunal_sigla,
           item.orgao_julgador,
           formatarData(item.data_disponibilizacao),
@@ -325,6 +331,7 @@ export default function PainelIntimacoes() {
   const recorteAtivo =
     Boolean(buscaDebounced) ||
     Boolean(filtros.tribunal) ||
+    filtros.tipoNumeracao !== "todos" ||
     Boolean(filtros.disponibilizacaoDe) ||
     Boolean(filtros.disponibilizacaoAte) ||
     filtros.apenasMinhaPauta ||
@@ -332,6 +339,9 @@ export default function PainelIntimacoes() {
   const partesRecorte = [
     buscaDebounced.trim() ? `busca "${buscaDebounced.trim()}"` : null,
     filtros.tribunal ? `tribunal ${filtros.tribunal}` : null,
+    filtros.tipoNumeracao !== "todos"
+      ? `tipo de numeração ${rotuloTipoNumeracao(filtros.tipoNumeracao)}`
+      : null,
     filtros.disponibilizacaoDe || filtros.disponibilizacaoAte
       ? `disponibilização ${
           filtros.disponibilizacaoDe && filtros.disponibilizacaoAte
@@ -487,6 +497,23 @@ export default function PainelIntimacoes() {
               ))}
             </Select>
           </FormField>
+          <FormField label="Tipo de numeração" htmlFor="filtro-tipo-numeracao">
+            <Select
+              id="filtro-tipo-numeracao"
+              data-testid="filtro-tipo-numeracao"
+              value={filtros.tipoNumeracao}
+              onChange={(evento) =>
+                setFiltros({ tipoNumeracao: evento.target.value as TipoNumeracao | "todos" })
+              }
+            >
+              <option value="todos">Todos os tipos</option>
+              {TIPOS_NUMERACAO.map((opcao) => (
+                <option key={opcao.valor} value={opcao.valor}>
+                  {opcao.rotulo}
+                </option>
+              ))}
+            </Select>
+          </FormField>
           <DateRange
             de={filtros.disponibilizacaoDe}
             ate={filtros.disponibilizacaoAte}
@@ -494,6 +521,7 @@ export default function PainelIntimacoes() {
             onAteChange={(valor) => setFiltros({ disponibilizacaoAte: valor })}
             idDe="filtro-de"
             idAte="filtro-ate"
+            className="lg:col-span-2"
           />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
@@ -684,6 +712,9 @@ export default function PainelIntimacoes() {
                           <strong className="text-[11px] font-semibold">
                             {formatarNumeroProcesso(item.numero_processo)}
                           </strong>
+                          {item.tipo_numeracao !== "cnj" ? (
+                            <TipoNumeracaoBadge tipo={item.tipo_numeracao} />
+                          ) : null}
                           <Badge variant="neutral">{item.tribunal_sigla}</Badge>
                           {item.origem === "manual" ? <Badge variant="neutral">Manual</Badge> : null}
                           {item.duplicado ? <Badge variant="warning">Já existia</Badge> : null}

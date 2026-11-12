@@ -5,12 +5,14 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
+import { normalizarNumero } from "@/lib/numeracao";
 import { intimacoesService } from "@/services";
 import type {
   ConsultaIntimacoes,
   CriterioDistribuicao,
   ID,
   IntimacaoInput,
+  TipoNumeracao,
 } from "@/types";
 
 export const intimacoesKeys = {
@@ -93,11 +95,17 @@ export function useIntimacao(id?: string) {
   });
 }
 
-export function useNumeroProcessoExistente(numeroDigitos: string) {
+/**
+ * Checagem de duplicidade de número. Compara ignorando pontuação, então
+ * "12345/2024" e "12345.2024" são o mesmo processo — vale para o CNJ e para
+ * os formatos livres.
+ */
+export function useNumeroProcessoExistente(numero: string) {
+  const normalizado = normalizarNumero(numero);
   return useQuery({
-    queryKey: ["intimacoes", "numero-existente", numeroDigitos],
-    queryFn: () => intimacoesService.existeNumero(numeroDigitos),
-    enabled: numeroDigitos.length === 20,
+    queryKey: ["intimacoes", "numero-existente", normalizado],
+    queryFn: () => intimacoesService.existeNumero(normalizado),
+    enabled: normalizado.length >= 3,
     staleTime: 0,
   });
 }
@@ -105,8 +113,12 @@ export function useNumeroProcessoExistente(numeroDigitos: string) {
 export function useCriarProcessoManual() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { numero_processo: string; observacoes: string | null; duplicado: boolean }) =>
-      intimacoesService.criarProcessoManual(input),
+    mutationFn: (input: {
+      numero_processo: string;
+      tipo_numeracao: TipoNumeracao;
+      observacoes: string | null;
+      duplicado: boolean;
+    }) => intimacoesService.criarProcessoManual(input),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
   });
@@ -144,6 +156,17 @@ export function useAtualizarObservacaoIntimacao() {
   return useMutation({
     mutationFn: ({ id, observacoes }: { id: ID; observacoes: string | null }) =>
       intimacoesService.update(id, { observacoes }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
+  });
+}
+
+/** Corrige o tipo de numeração de um processo já incluído. */
+export function useAtualizarTipoNumeracaoIntimacao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, tipo_numeracao }: { id: ID; tipo_numeracao: TipoNumeracao }) =>
+      intimacoesService.update(id, { tipo_numeracao }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
   });

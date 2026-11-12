@@ -1,12 +1,14 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { CalendarClock, Sparkles } from "lucide-react";
 import type { HTMLAttributes } from "react";
+import { seloTipoNumeracao } from "@/lib/numeracao";
 import { cn } from "@/lib/utils";
 import { slaDeDataFatal } from "@/lib/sla";
 import type {
   EtapaKanban,
   StatusAnaliseIA,
   StatusFluxoIntimacao,
+  TipoNumeracao,
 } from "@/types";
 
 export const badgeVariants = cva(
@@ -85,6 +87,31 @@ export function EtapaBadge({
   return (
     <Badge variant={config.variant} className={className}>
       {config.rotulo}
+    </Badge>
+  );
+}
+
+const TONS_NUMERACAO: Record<TipoNumeracao, BadgeProps["variant"]> = {
+  cnj: "neutral",
+  inss: "gold",
+  inquerito: "info",
+  outro: "neutral",
+};
+
+/**
+ * Identifica o formato da numeração do processo. Na listagem só é usado para
+ * os formatos que não são CNJ: o número CNJ já se identifica pela máscara.
+ */
+export function TipoNumeracaoBadge({
+  tipo,
+  className,
+}: {
+  tipo: TipoNumeracao;
+  className?: string;
+}) {
+  return (
+    <Badge variant={TONS_NUMERACAO[tipo] ?? "neutral"} className={className}>
+      {seloTipoNumeracao(tipo)}
     </Badge>
   );
 }

@@ -1,0 +1,1 @@
+create index if not exists intimacoes_numero_normalizado_idx on public.intimacoes (numero_processo_normalizado)
