@@ -52,19 +52,9 @@ test("incluir processo manual valida o CNJ, avisa duplicidade e abre o existente
   await modal.getByTestId("novo-processo-numero").fill(numero);
   await modal.locator("#novo-processo-observacoes").fill("Protocolo físico pendente");
   await modal.getByRole("button", { name: "Incluir processo" }).click();
-  await page.waitForTimeout(2000);
-  expect(
-    {
-      numero: await modal.getByTestId("novo-processo-numero").inputValue(),
-      tipo: await modal.getByTestId("novo-processo-tipo").inputValue(),
-      botaoDesabilitado: await modal
-        .getByRole("button", { name: "Incluir processo" })
-        .isDisabled(),
-      toasts: await page.locator("[data-sonner-toast]").allInnerTexts(),
-      fimDoCorpo: (await page.locator("body").innerText()).split("\n").slice(-5),
-    },
-    "DIAGNOSTICO APOS SALVAR",
-  ).toBe(null);
+  await expect(page.getByText("Processo incluído no painel.")).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(modal).toBeHidden();
 
   await page.locator("#filtro-busca").fill(numero);
@@ -87,4 +77,54 @@ test("incluir processo manual valida o CNJ, avisa duplicidade e abre o existente
     .getByRole("button", { name: "Abrir o registro existente" })
     .click();
   await expect(page).toHaveURL(/\/painel\/publicacao\//);
+});
+
+test("definir o prazo fatal de um processo incluído manualmente", async ({
+  page,
+}) => {
+  const tabela = page.getByRole("table", {
+    name: "Intimações capturadas do DJEN",
+  });
+
+  // Inclui o processo à mão, como faz o escritório quando não vem do DJEN.
+  await page.getByRole("button", { name: /Incluir processo/ }).click();
+  const modal = page.getByRole("dialog", {
+    name: "Incluir processo manualmente",
+  });
+  await modal.getByTestId("novo-processo-tipo").selectOption("cnj");
+  await modal.getByTestId("novo-processo-numero").fill(numero);
+  await modal.getByRole("button", { name: "Incluir processo" }).click();
+  await expect(page.getByText("Processo incluído no painel.")).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(modal).toBeHidden();
+
+  // Sem prazo informado, a lista mostra "Não identificado".
+  await page.locator("#filtro-busca").fill(numero);
+  const linha = tabela
+    .getByRole("row")
+    .filter({ hasText: mascararCnj(numero) })
+    .first();
+  await expect(linha).toContainText("Não identificado");
+
+  // O prazo é opcional e pode ser preenchido à mão (aqui, a data da audiência).
+  await linha
+    .getByRole("button", { name: `Abrir detalhes de ${mascararCnj(numero)}` })
+    .click();
+  const painel = page.getByRole("dialog", { name: mascararCnj(numero) });
+  await painel.getByTestId("detalhe-prazo-fatal").fill("2026-12-20");
+  await painel.getByRole("button", { name: "Salvar prazo" }).click();
+  await expect(page.getByText("Prazo fatal salvo.")).toBeVisible();
+
+  // O valor persiste e passa a valer na lista.
+  await page.reload();
+  await expect(
+    page.getByTestId("detalhe-prazo-fatal"),
+    "o prazo fatal deve continuar salvo depois de recarregar",
+  ).toHaveValue("2026-12-20");
+  await page.getByRole("button", { name: "Fechar painel" }).click();
+  await page.locator("#filtro-busca").fill(numero);
+  await expect(
+    tabela.getByRole("row").filter({ hasText: mascararCnj(numero) }).first(),
+  ).toContainText("20/12/2026");
 });

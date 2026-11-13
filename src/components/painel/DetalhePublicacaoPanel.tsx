@@ -31,6 +31,7 @@ import {
   useAdvogadosVisiveis,
   useAnalisarPublicacao,
   useAnalisesIa,
+  useAtualizarPrazoFatalIntimacao,
   useAtualizarTipoNumeracaoIntimacao,
   useDispensarIntimacao,
   useEnviarParaEsteira,
@@ -78,6 +79,7 @@ export function DetalhePublicacaoPanel({
   const reativar = useReativarIntimacao();
   const registrarEvento = useRegistrarEvento();
   const atualizarTipoNumeracao = useAtualizarTipoNumeracaoIntimacao();
+  const atualizarPrazoFatal = useAtualizarPrazoFatalIntimacao();
   const analisar = useAnalisarPublicacao();
   const analises = useAnalisesIa(intimacao?.raw_id ?? undefined);
 
@@ -181,6 +183,24 @@ export function DetalhePublicacaoPanel({
   }
 
   /* ---------------- Ações (lógica condicional por status) ---------------- */
+
+  /* O prazo das inclusões manuais é definido aqui, sem depender da distribuição:
+     pode ficar em branco e pode ser ajustado a qualquer momento. */
+  async function salvarPrazoFatal() {
+    if (!intimacao) return;
+    try {
+      await atualizarPrazoFatal.mutateAsync({
+        id: intimacao.id,
+        data_fatal_calculada: fatal || null,
+      });
+      auditar("prazo_ajustado_manualmente", intimacao.data_fatal_calculada, fatal || null);
+      toast.success(fatal ? "Prazo fatal salvo." : "Prazo fatal removido.");
+    } catch (erro) {
+      toast.error(
+        erro instanceof Error ? erro.message : "Não foi possível salvar o prazo fatal.",
+      );
+    }
+  }
 
   async function salvarEEnviar() {
     if (!intimacao) return;
@@ -443,6 +463,34 @@ export function DetalhePublicacaoPanel({
                       </option>
                     ))}
                   </Select>
+                </FormField>
+              </div>
+              <div>
+                <p className="label-kit mb-3">Prazo fatal</p>
+                <FormField
+                  label="Prazo fatal (opcional)"
+                  htmlFor="painel-fatal-manual"
+                  hint="Preencha quando houver uma data definida fora do DJEN, como a data da audiência. Pode ficar em branco."
+                >
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="painel-fatal-manual"
+                      data-testid="detalhe-prazo-fatal"
+                      type="date"
+                      value={fatal}
+                      onChange={(evento) => setFatal(evento.target.value)}
+                    />
+                    {prazoDivergente ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        loading={atualizarPrazoFatal.isPending}
+                        onClick={salvarPrazoFatal}
+                      >
+                        Salvar prazo
+                      </Button>
+                    ) : null}
+                  </div>
                 </FormField>
               </div>
               <div>

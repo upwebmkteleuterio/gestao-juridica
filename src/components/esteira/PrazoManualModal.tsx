@@ -122,7 +122,6 @@ export function PrazoManualModal({ open, onClose }: PrazoManualModalProps) {
     if (!campos.tipo_peca.trim()) novos.tipo_peca = "Informe a ação ou tipo de peça.";
     if (!campos.data_ciencia) novos.data_ciencia = "Informe a data de ciência.";
     if (!campos.dias || Number(campos.dias) <= 0) novos.dias = "Informe um número de dias maior que zero.";
-    if (!campos.data_fatal) novos.data_fatal = "Informe ou recalcule a data fatal.";
     if (!campos.advogado_id) novos.advogado_id = "Selecione o advogado responsável.";
     return novos;
   }
@@ -213,9 +212,13 @@ export function PrazoManualModal({ open, onClose }: PrazoManualModalProps) {
               opcoes={[{ valor: "uteis", rotulo: "Dias úteis" }, { valor: "corridos", rotulo: "Dias corridos" }]}
             />
           </FormField>
-          <FormField label="Data fatal calculada" htmlFor="prazo-fatal" required error={erros.data_fatal}>
+          <FormField
+            label="Data fatal"
+            htmlFor="prazo-fatal"
+            hint="Pode ficar em branco ou ser definida à mão, como a data da audiência. Use Recalcular para voltar ao cálculo automático."
+          >
             <div className="flex items-center gap-2">
-              <Input id="prazo-fatal" type="date" value={campos.data_fatal} onChange={(evento) => { setDataFatalManual(true); alterar("data_fatal", evento.target.value); }} aria-invalid={Boolean(erros.data_fatal) || undefined} />
+              <Input id="prazo-fatal" type="date" value={campos.data_fatal} onChange={(evento) => { setDataFatalManual(true); alterar("data_fatal", evento.target.value); }} />
               {dataFatalManual ? <Button type="button" variant="ghost" size="sm" onClick={recalcularDataFatal}>Recalcular</Button> : null}
             </div>
           </FormField>

@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Alert, Button, FormField, Input, Modal, Select, Textarea } from "@/components/kit";
-import { useCriarProcessoManual, useNumeroProcessoExistente, useRegistrarEvento, useUsuarioAtual, useValorDebounced } from "@/hooks";
+import { numeroProcessoJaExiste, useCriarProcessoManual, useNumeroProcessoExistente, useRegistrarEvento, useUsuarioAtual, useValorDebounced } from "@/hooks";
 import { cnjValido, formatarDataHora, mascararCnj } from "@/lib/format";
-import { TIPOS_NUMERACAO, normalizarNumero } from "@/lib/numeracao";
+import { TIPOS_NUMERACAO } from "@/lib/numeracao";
 import type { TipoNumeracao } from "@/types";
 
 interface NovoProcessoModalProps {
@@ -27,10 +27,10 @@ export function NovoProcessoModal({ open, onClose }: NovoProcessoModalProps) {
   const numeroValido = ehCnj ? cnjValido(numero) : numeroLimpo.length >= 2;
 
   /* Duplicidade é igualdade do número sem pontuação: "12345/2024" e
-     "12345.2024" são o mesmo processo. O atraso evita uma consulta por tecla. */
+     "12345.2024" são o mesmo processo. O atraso evita uma consulta por tecla;
+     a conferência que decide o salvamento acontece na hora de salvar. */
   const numeroDebounced = useValorDebounced(numero, 400);
   const existente = useNumeroProcessoExistente(numeroDebounced);
-  const verificacaoPendente = normalizarNumero(numero) !== normalizarNumero(numeroDebounced);
 
   const criar = useCriarProcessoManual();
   const registrarEvento = useRegistrarEvento();
@@ -66,15 +66,15 @@ export function NovoProcessoModal({ open, onClose }: NovoProcessoModalProps) {
   async function salvar() {
     setTentouSalvar(true);
     if (!tipo || !numeroValido) return;
-    /* Enquanto a checagem está em curso o botão fica bloqueado; estes desvios
-       são apenas rede de segurança. */
-    if (verificacaoPendente || existente.isFetching) return;
-    if (existente.isError) {
+    /* A duplicidade é conferida agora, com o número exato que está na tela: o
+       aviso ao lado é só um adiantamento e nunca uma condição para salvar. */
+    let duplicado: boolean;
+    try {
+      duplicado = await numeroProcessoJaExiste(numero);
+    } catch {
       toast.error("Não foi possível confirmar se o processo já existe. Tente novamente.");
       return;
     }
-
-    const duplicado = Boolean(existente.data);
     try {
       const criado = await criar.mutateAsync({
         numero_processo: numeroLimpo,
@@ -117,12 +117,7 @@ export function NovoProcessoModal({ open, onClose }: NovoProcessoModalProps) {
           <Button variant="secondary" onClick={onClose} disabled={criar.isPending}>
             Cancelar
           </Button>
-          <Button
-            variant="primary"
-            loading={criar.isPending}
-            disabled={verificacaoPendente || existente.isFetching || existente.isError}
-            onClick={salvar}
-          >
+          <Button variant="primary" loading={criar.isPending} onClick={salvar}>
             Incluir processo
           </Button>
         </>

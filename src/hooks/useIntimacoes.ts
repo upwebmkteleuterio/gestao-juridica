@@ -110,6 +110,16 @@ export function useNumeroProcessoExistente(numero: string) {
   });
 }
 
+/**
+ * Verificação pontual do número, fora do cache: é usada no momento de salvar.
+ * Assim a inclusão não depende do tempo do aviso ao lado e o registro de
+ * duplicidade nunca sai errado por causa do atraso da digitação.
+ */
+export async function numeroProcessoJaExiste(numero: string): Promise<boolean> {
+  const encontrado = await intimacoesService.existeNumero(normalizarNumero(numero));
+  return Boolean(encontrado);
+}
+
 export function useCriarProcessoManual() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -167,6 +177,25 @@ export function useAtualizarTipoNumeracaoIntimacao() {
   return useMutation({
     mutationFn: ({ id, tipo_numeracao }: { id: ID; tipo_numeracao: TipoNumeracao }) =>
       intimacoesService.update(id, { tipo_numeracao }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
+  });
+}
+
+/**
+ * Define ou limpa o prazo fatal da intimação. Vale principalmente para as
+ * incluídas à mão, que não trazem prazo do DJEN.
+ */
+export function useAtualizarPrazoFatalIntimacao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data_fatal_calculada,
+    }: {
+      id: ID;
+      data_fatal_calculada: string | null;
+    }) => intimacoesService.update(id, { data_fatal_calculada }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: intimacoesKeys.all }),
   });
