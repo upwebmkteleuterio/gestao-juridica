@@ -21,7 +21,9 @@ import { normalizarNumero } from "@/lib/numeracao";
 import { invocarFuncao, mensagemDeErro } from "./erros";
 import { criarRepositorioSupabase } from "./repositorioSupabase";
 
-const COLUNAS = "id, raw_id, numero_processo, tipo_numeracao, tribunal_sigla, orgao_julgador, data_disponibilizacao, origem, observacoes, duplicado, acao_sugerida_ia, resumo_ia, prazo_extraido_texto, data_fatal_calculada, advogado_id, status_fluxo, distribuido_em, trecho_fundamentador, pendencias, status_analise, analisado_em, arquivado_em";
+const COLUNAS_TABELA = "id, raw_id, numero_processo, tipo_numeracao, tribunal_sigla, orgao_julgador, data_disponibilizacao, tipo_documento, origem, observacoes, duplicado, repetida, acao_sugerida_ia, resumo_ia, prazo_extraido_texto, data_fatal_calculada, advogado_id, status_fluxo, distribuido_em, trecho_fundamentador, pendencias, status_analise, analisado_em, arquivado_em";
+const COLUNAS_AGRUPADAS = COLUNAS_TABELA.replace(", tipo_documento", "");
+const COLUNAS = `${COLUNAS_AGRUPADAS}, publicacoes, repetidas`;
 const COLUNAS_ANALISE = "id, raw_id, modelo, status, resumo, acao_sugerida, prazo_texto, prazo_data, trecho_fundamentador, pendencias, motivo_falha, duracao_ms, criado_em";
 const ORDENACAO_PADRAO: OrdenacaoConsulta<CampoOrdenacaoIntimacao> = {
   campo: "data_disponibilizacao",
@@ -51,25 +53,31 @@ function normalizar(linha: Intimacao): Intimacao {
     origem: linha.origem ?? "djen",
     observacoes: linha.observacoes ?? null,
     duplicado: Boolean(linha.duplicado),
+    repetida: Boolean(linha.repetida),
+    tipo_documento: linha.tipo_documento ?? null,
+    publicacoes: linha.publicacoes ?? 1,
+    repetidas: linha.repetidas ?? 1,
     arquivado_em: linha.arquivado_em ?? null,
   };
 }
 
 const repositorio = criarRepositorioSupabase<Intimacao, IntimacaoInput>({
   tabela: "intimacoes",
-  colunas: COLUNAS,
+  colunas: COLUNAS_TABELA,
   montar: normalizar,
 });
 
 function consultaBase(consulta: ConsultaIntimacoes = {}) {
-  let query = supabase.from("intimacoes").select(COLUNAS, { count: "exact" });
+  const tabela = consulta.mostrarTodas ? "intimacoes" : "intimacoes_agrupadas";
+  const colunas = consulta.mostrarTodas ? COLUNAS_TABELA : COLUNAS;
+  let query = supabase.from(tabela).select(colunas, { count: "exact" });
   const busca = consulta.busca?.trim().replace(/[,()%*\\"]/g, "").trim() ?? "";
   if (busca) {
     /* A segunda variação ignora pontuação, então "123452024" encontra
        "12345/2024" — o número pode ser digitado como veio do documento. */
     const digitos = busca.replace(/\D/g, "");
-    const buscaProcesso = digitos ? `,numero_processo_normalizado.ilike.*${digitos}*` : "";
-    query = query.or(`numero_processo.ilike.*${busca}*${buscaProcesso},tribunal_sigla.ilike.*${busca}*,orgao_julgador.ilike.*${busca}*,acao_sugerida_ia.ilike.*${busca}*,resumo_ia.ilike.*${busca}*`);
+    const numeroSemPontuacao = digitos ? `,numero_processo.ilike.*${digitos.split("").join("*")}*` : "";
+    query = query.or(`numero_processo.ilike.*${busca}*${numeroSemPontuacao},tribunal_sigla.ilike.*${busca}*,orgao_julgador.ilike.*${busca}*,acao_sugerida_ia.ilike.*${busca}*,resumo_ia.ilike.*${busca}*`);
   }
   if (consulta.tribunal) query = query.eq("tribunal_sigla", consulta.tribunal);
   if (consulta.tipoNumeracao && consulta.tipoNumeracao !== "todos") {
@@ -98,6 +106,16 @@ function aplicarOrdenacao(query: ReturnType<typeof consultaBase>, ordenacao?: Or
 
 export const intimacoesService = {
   ...repositorio,
+
+  async listarDoProcesso(numeroProcessoNormalizado: string): Promise<Intimacao[]> {
+    const { data, error } = await supabase.from("intimacoes")
+      .select(COLUNAS_TABELA)
+      .eq("numero_processo_normalizado", numeroProcessoNormalizado)
+      .order("data_disponibilizacao", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(mensagemDeErro(error));
+    return ((data ?? []) as unknown as Intimacao[]).map(normalizar);
+  },
 
   async listar(consulta: ConsultaIntimacoes = {}): Promise<ResultadoConsultaIntimacoes> {
     const tamanhoPagina = Math.max(1, consulta.tamanhoPagina ?? TAMANHO_PAGINA_PADRAO);
@@ -164,7 +182,7 @@ export const intimacoesService = {
       resumo_ia: "",
       trecho_fundamentador: "",
       pendencias: [],
-    } as never).select(COLUNAS).single();
+    } as never).select(COLUNAS_TABELA).single();
     if (error) throw new Error(mensagemDeErro(error));
     return normalizar(data as unknown as Intimacao);
   },
@@ -189,7 +207,7 @@ export const intimacoesService = {
   },
 
   async contarPendentes(): Promise<number> {
-    const { count, error } = await supabase.from("intimacoes").select("id", { count: "exact", head: true })
+    const { count, error } = await supabase.from("intimacoes_agrupadas").select("id", { count: "exact", head: true })
       .eq("status_fluxo", "triagem").is("advogado_id", null).is("arquivado_em", null);
     if (error) throw new Error(mensagemDeErro(error));
     return count ?? 0;
@@ -208,14 +226,14 @@ export const intimacoesService = {
   async obterIndicadores(marcoZero?: string | null): Promise<IndicadoresIntimacoes> {
     const marco = marcoZero ?? null;
     const base = () => {
-      let query = supabase.from("intimacoes")
+      let query = supabase.from("intimacoes_agrupadas")
         .select("id", { count: "exact", head: true })
         .is("arquivado_em", null);
       if (marco) query = query.gte("data_referencia", marco);
       return query;
     };
 
-    let consultaUltima = supabase.from("intimacoes").select("data_disponibilizacao");
+    let consultaUltima = supabase.from("intimacoes_agrupadas").select("data_disponibilizacao");
     if (marco) consultaUltima = consultaUltima.gte("data_referencia", marco);
     const { data: ultima, error: erroUltima } = await consultaUltima
       .order("data_disponibilizacao", { ascending: false, nullsFirst: false }).limit(1).maybeSingle();

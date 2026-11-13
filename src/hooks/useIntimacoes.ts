@@ -20,6 +20,7 @@ export const intimacoesKeys = {
   consulta: (consulta: ConsultaIntimacoes) =>
     ["intimacoes", "consulta", consulta] as const,
   detalhe: (id: string) => ["intimacoes", "detalhe", id] as const,
+  processo: (numeroNormalizado: string) => ["intimacoes", "processo", numeroNormalizado] as const,
   analises: (rawId: string) => ["intimacoes", "analises", rawId] as const,
   indicadores: (marcoZero: string | null) =>
     ["intimacoes", "indicadores", marcoZero] as const,
@@ -92,6 +93,14 @@ export function useIntimacao(id?: string) {
     queryKey: intimacoesKeys.detalhe(id ?? ""),
     queryFn: () => intimacoesService.getById(id as string),
     enabled: Boolean(id),
+  });
+}
+
+export function usePublicacoesDoProcesso(numeroNormalizado?: string) {
+  return useQuery({
+    queryKey: intimacoesKeys.processo(numeroNormalizado ?? ""),
+    queryFn: () => intimacoesService.listarDoProcesso(numeroNormalizado as string),
+    enabled: Boolean(numeroNormalizado),
   });
 }
 

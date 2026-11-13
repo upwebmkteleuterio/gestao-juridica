@@ -11,6 +11,9 @@ import {
   type MembroTeste,
 } from "./fixtures/conta-teste";
 
+// O provisionamento de dois usuários de teste e o login podem ser lentos.
+test.describe.configure({ timeout: 90_000 });
+
 const OBSERVACAO = "Juntar comprovante de residencia";
 
 let conta: ContaTeste;
@@ -38,7 +41,8 @@ test("distribuir um processo manual gera tarefa na esteira com o título da obse
   const modal = page.getByRole("dialog", {
     name: "Incluir processo manualmente",
   });
-  await modal.locator("#novo-processo-cnj").fill(numero);
+  await modal.getByTestId("novo-processo-tipo").selectOption("cnj");
+  await modal.getByTestId("novo-processo-numero").fill(numero);
   await modal.locator("#novo-processo-observacoes").fill(OBSERVACAO);
   await modal.getByRole("button", { name: "Incluir processo" }).click();
   await expect(modal).toBeHidden();

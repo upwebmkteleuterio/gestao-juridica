@@ -1,0 +1,1 @@
+grant select on public.intimacoes_agrupadas to service_role

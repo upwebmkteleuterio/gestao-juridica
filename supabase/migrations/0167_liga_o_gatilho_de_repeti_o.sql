@@ -1,0 +1,1 @@
+create trigger intimacoes_repetida before insert on public.intimacoes for each row execute function public.marcar_publicacao_repetida()

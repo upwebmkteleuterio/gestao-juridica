@@ -23,9 +23,13 @@ export interface Intimacao {
   tribunal_sigla: string;
   orgao_julgador: string;
   data_disponibilizacao: DateOnly | null;
+  tipo_documento: string | null;
   origem: OrigemIntimacao;
   observacoes: string | null;
   duplicado: boolean;
+  repetida: boolean;
+  publicacoes: number;
+  repetidas: number;
   acao_sugerida_ia: string;
   resumo_ia: string;
   /** Prazo exatamente como o texto indicou, ou "não identificado". */
@@ -44,7 +48,8 @@ export interface Intimacao {
   arquivado_em: ISODate | null;
 }
 
-export type IntimacaoInput = Omit<Intimacao, "id">;
+export type IntimacaoInput = Omit<Intimacao, "id" | "publicacoes" | "repetidas" | "repetida" | "tipo_documento"> &
+  Partial<Pick<Intimacao, "publicacoes" | "repetidas" | "repetida" | "tipo_documento">>;
 
 /**
  * Tabela `analises_ia` — histórico append-only: uma linha por tentativa de
@@ -103,9 +108,11 @@ export interface ConsultaIntimacoes {
    * Marco zero: quando informado, a consulta considera apenas publicações
    * com data de referência a partir desta data.
    */
-  marcoZero?: string | null;
-  pagina?: number;
-  tamanhoPagina?: number;
+   marcoZero?: string | null;
+   /** `true` consulta cada publicação; por padrão, uma linha por processo. */
+   mostrarTodas?: boolean;
+   pagina?: number;
+   tamanhoPagina?: number;
   ordenacao?: OrdenacaoConsulta<CampoOrdenacaoIntimacao>;
 }
 
@@ -117,6 +124,7 @@ export interface FiltroIntimacoes {
   disponibilizacaoAte: string;
   apenasMinhaPauta: boolean;
   apenasArquivadas: boolean;
+  mostrarTodas: boolean;
   tipoNumeracao: TipoNumeracao | "todos";
   advogadoId: ID | null;
 }

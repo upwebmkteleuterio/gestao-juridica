@@ -1,0 +1,1 @@
+alter table public.intimacoes add column repetida boolean not null default false

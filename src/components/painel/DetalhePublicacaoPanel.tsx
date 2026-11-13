@@ -11,6 +11,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Alert,
@@ -37,12 +38,13 @@ import {
   useEnviarParaEsteira,
   useIntimacao,
   useIntimacaoDjenRaw,
+  usePublicacoesDoProcesso,
   useReativarIntimacao,
   useRegistrarEvento,
 } from "@/hooks";
 import { contarDiasUteis } from "@/lib/datas";
 import { formatarData, formatarDataHora, formatarNumeroProcesso } from "@/lib/format";
-import { TIPOS_NUMERACAO } from "@/lib/numeracao";
+import { normalizarNumero, TIPOS_NUMERACAO } from "@/lib/numeracao";
 import { somarDiasUteis } from "@/lib/prazos";
 import { useUsuarioAtual } from "@/hooks";
 import type { TipoNumeracao } from "@/types";
@@ -67,9 +69,13 @@ export function DetalhePublicacaoPanel({
 }: DetalhePublicacaoPanelProps) {
   const aberto = Boolean(intimacaoId);
   const usuario = useUsuarioAtual();
+  const navigate = useNavigate();
 
   const intimacaoQuery = useIntimacao(intimacaoId ?? undefined);
   const intimacao = intimacaoQuery.data ?? null;
+  const publicacoesDoProcesso = usePublicacoesDoProcesso(
+    intimacao ? normalizarNumero(intimacao.numero_processo) : undefined,
+  );
   const rawQuery = useIntimacaoDjenRaw(intimacao?.raw_id ?? undefined);
   const payload = rawQuery.data?.payload_json;
 
@@ -383,6 +389,33 @@ export function DetalhePublicacaoPanel({
         </Alert>
       ) : (
         <div className="space-y-6">
+          <section>
+            <p className="label-kit mb-3">Publicações deste processo</p>
+            {publicacoesDoProcesso.isLoading ? (
+              <Skeleton className="h-16" />
+            ) : (
+              <ul className="space-y-2" data-testid="publicacoes-do-processo">
+                {(publicacoesDoProcesso.data ?? []).map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className="flex w-full flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3 text-left hover:bg-secondary/50"
+                      onClick={() => navigate(`/painel/publicacao/${item.id}`)}
+                    >
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-medium">{formatarData(item.data_disponibilizacao)}</span>
+                        <span className="text-[11px] text-muted-foreground">{item.tipo_documento || (item.origem === "manual" ? "Inclusão manual" : "Publicação do DJEN")}</span>
+                        <StatusBadge status={item.status_fluxo} />
+                        {item.repetida ? <Badge variant="warning">Repetida</Badge> : null}
+                      </span>
+                      {item.id === intimacao.id ? <Badge variant="neutral">Aberta</Badge> : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <div className="border-t border-border" />
           {intimacao.origem !== "manual" ? (
             <>
               {/* Datas-chave da publicação — leitura imediata, antes do parecer da IA */}

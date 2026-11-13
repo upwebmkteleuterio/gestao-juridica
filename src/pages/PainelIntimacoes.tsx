@@ -41,6 +41,7 @@ import {
   Select,
   Skeleton,
   StatusBadge,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -156,6 +157,7 @@ export default function PainelIntimacoes() {
     filtros.disponibilizacaoAte,
     filtros.apenasMinhaPauta,
     filtros.apenasArquivadas,
+    filtros.mostrarTodas,
   ]);
 
   const recorte: Omit<ConsultaIntimacoes, "pagina" | "tamanhoPagina"> =
@@ -168,6 +170,7 @@ export default function PainelIntimacoes() {
         disponibilizacaoAte: filtros.disponibilizacaoAte,
         advogadoId: filtros.apenasMinhaPauta ? (usuario?.id ?? null) : null,
         apenasArquivadas: filtros.apenasArquivadas,
+        mostrarTodas: filtros.mostrarTodas,
         /* A visão de arquivados é histórica: o marco zero não a recorta. */
         marcoZero: filtros.apenasArquivadas ? null : marcoLista,
         ordenacao: { campo: "data_disponibilizacao", direcao: "desc" },
@@ -235,6 +238,7 @@ export default function PainelIntimacoes() {
       const conteudo = gerarCsv(
         [
           "Processo",
+          "Publicações",
           "Tipo de numeração",
           "Tribunal",
           "Órgão / Vara",
@@ -249,6 +253,7 @@ export default function PainelIntimacoes() {
         ],
         dados.map((item) => [
           formatarNumeroProcesso(item.numero_processo),
+          String(item.publicacoes),
           rotuloTipoNumeracao(item.tipo_numeracao),
           item.tribunal_sigla,
           item.orgao_julgador,
@@ -284,7 +289,7 @@ export default function PainelIntimacoes() {
       }).format(new Date()).replace(" ", "_").replace(":", "");
       baixarArquivo(`MG-painel-intimacoes-${dataHora}.csv`, conteudo);
       toast.success(
-        `${dados.length} publicações exportadas em CSV (compatível com Excel).`,
+        `${dados.length} ${filtros.mostrarTodas ? "publicações" : "processos"} exportados em CSV (compatível com Excel).`,
       );
     } catch {
       toast.error("Não foi possível exportar o recorte.");
@@ -335,7 +340,8 @@ export default function PainelIntimacoes() {
     Boolean(filtros.disponibilizacaoDe) ||
     Boolean(filtros.disponibilizacaoAte) ||
     filtros.apenasMinhaPauta ||
-    filtros.apenasArquivadas;
+    filtros.apenasArquivadas ||
+    filtros.mostrarTodas;
   const partesRecorte = [
     buscaDebounced.trim() ? `busca "${buscaDebounced.trim()}"` : null,
     filtros.tribunal ? `tribunal ${filtros.tribunal}` : null,
@@ -352,6 +358,7 @@ export default function PainelIntimacoes() {
         }`
       : null,
     filtros.apenasMinhaPauta ? "minha pauta" : null,
+    filtros.mostrarTodas ? "todas as publicações" : null,
   ].filter((parte): parte is string => Boolean(parte));
   const descricaoRecorte = partesRecorte.length
     ? partesRecorte.join(" · ")
@@ -523,12 +530,23 @@ export default function PainelIntimacoes() {
             idAte="filtro-ate"
             className="lg:col-span-2"
           />
+          <label htmlFor="filtro-mostrar-todas" className="flex items-center gap-3 text-[11px] font-medium">
+            <Switch
+              id="filtro-mostrar-todas"
+              aria-label="Mostrar todas as publicações"
+              checked={filtros.mostrarTodas}
+              onChange={(evento) => setFiltros({ mostrarTodas: evento.target.checked })}
+            />
+            Mostrar todas as publicações
+          </label>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
           <span className="text-[10px] text-muted-foreground">
             {recorteAtivo
-              ? "Recorte ativo aplicado na consulta."
-              : "Nenhum filtro aplicado — exibindo o recorte completo."}
+              ? filtros.mostrarTodas
+                ? "Recorte ativo — exibindo todas as publicações, inclusive repetidas."
+                : "Recorte ativo aplicado à lista de processos."
+              : "Nenhum filtro aplicado — exibindo um processo por linha."}
           </span>
           <Button variant="ghost" onClick={limparFiltros}>
             <Filter className="h-3.5 w-3.5" aria-hidden="true" />
@@ -547,8 +565,8 @@ export default function PainelIntimacoes() {
           }
           descricao={
             lista.isLoading
-              ? "Consultando publicações…"
-              : `${total} publicações no recorte · página ${lista.data?.pagina ?? 1} de ${totalPaginas}`
+              ? "Consultando intimações…"
+              : `${total} ${filtros.mostrarTodas ? "publicações" : "processos"} no recorte · página ${lista.data?.pagina ?? 1} de ${totalPaginas}`
           }
           acoes={
             <>
@@ -708,7 +726,7 @@ export default function PainelIntimacoes() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className="flex items-center gap-2">
+                        <span className="flex flex-wrap items-center gap-2">
                           <strong className="text-[11px] font-semibold">
                             {formatarNumeroProcesso(item.numero_processo)}
                           </strong>
@@ -718,6 +736,17 @@ export default function PainelIntimacoes() {
                           <Badge variant="neutral">{item.tribunal_sigla}</Badge>
                           {item.origem === "manual" ? <Badge variant="neutral">Manual</Badge> : null}
                           {item.duplicado ? <Badge variant="warning">Já existia</Badge> : null}
+                          {!filtros.mostrarTodas && item.publicacoes > 1 ? (
+                            <Badge variant="info">{item.publicacoes} publicações</Badge>
+                          ) : null}
+                          {!filtros.mostrarTodas && item.repetidas > 0 ? (
+                            <Badge variant="warning">
+                              {item.repetidas === 1 ? "Repetida" : `${item.repetidas} repetidas`}
+                            </Badge>
+                          ) : null}
+                          {filtros.mostrarTodas && item.repetida ? (
+                            <Badge variant="warning">Repetida</Badge>
+                          ) : null}
                         </span>
                       </TableCell>
                       <TableCell onClick={(evento) => evento.stopPropagation()}>
@@ -806,7 +835,7 @@ export default function PainelIntimacoes() {
           <span>
             {lista.isLoading
               ? "Carregando…"
-              : `${total} publicações · exibindo ${itens.length} nesta página`}
+              : `${total} ${filtros.mostrarTodas ? "publicações" : "processos"} · exibindo ${itens.length} nesta página`}
           </span>
           <Pagination
             pagina={lista.data?.pagina ?? pagina}
