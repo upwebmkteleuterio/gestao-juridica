@@ -1,0 +1,1 @@
+create trigger intimacoes_processo_ja_existente before insert on public.intimacoes for each row execute function public.marcar_processo_ja_existente()

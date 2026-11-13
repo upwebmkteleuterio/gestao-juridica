@@ -47,7 +47,7 @@
 - Comprovantes de protocolo são enviados ao bucket privado `recibos-protocolo`.
 - O **marco zero** do painel (a partir de quando o escritório contabiliza as publicações) é uma configuração única em `configuracoes_sistema`, com escopo escolhido pelo admin (indicadores / lista / exportação) e aplicada sempre no banco.
 - As ações em lote do painel — encerrar pendências, arquivar e excluir — são exclusivas do admin, agem por período e são executadas por RPC (`encerrar_pendencias_periodo`, `arquivar_intimacoes_periodo`, `excluir_intimacoes_periodo`). A data usada no período é `intimacoes.data_referencia` (disponibilização do DJEN ou data de criação), mantida por trigger.
-- O Painel lista **um item por processo**, não por publicação: a leitura vem da visão `intimacoes_agrupadas` (que traz `publicacoes` e `repetidas`), e a tabela `intimacoes` só é consultada quando o filtro "Mostrar todas as publicações" está ligado. Publicações idênticas do mesmo processo, dia e tipo de documento são marcadas como `repetida` por gatilho no banco. Distribuir ou enviar para a esteira move o processo inteiro e gera **uma tarefa por processo**.
+- O Painel lista **um item por processo**, não por publicação: a leitura vem da visão `intimacoes_agrupadas` (que traz `publicacoes` e `repetidas`), e a tabela `intimacoes` só é consultada quando o filtro "Mostrar todas as publicações" está ligado. Publicações idênticas do mesmo processo, dia e tipo de documento são marcadas como `repetida` por gatilho no banco; publicação de um processo que já tinha registro em data anterior é marcada como `duplicado` ("Já existia"), também por gatilho. Distribuir ou enviar para a esteira move o processo inteiro e gera **uma tarefa por processo**.
 
 # Referências
 
