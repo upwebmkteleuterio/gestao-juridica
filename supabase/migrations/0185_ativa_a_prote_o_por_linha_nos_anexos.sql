@@ -1,0 +1,1 @@
+alter table public.anexos enable row level security

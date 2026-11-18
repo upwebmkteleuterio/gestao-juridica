@@ -1,0 +1,1 @@
+alter table public.tarefas_prazos add constraint tarefas_prazos_tipo_numeracao_check check (tipo_numeracao in ('cnj', 'inss', 'inquerito', 'outro'))

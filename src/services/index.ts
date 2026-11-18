@@ -1,4 +1,5 @@
 export * from "./erros";
+export * from "./anexosService";
 export * from "./repositorioSupabase";
 export * from "./advogadosService";
 export * from "./equipeService";

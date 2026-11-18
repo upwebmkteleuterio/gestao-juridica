@@ -56,7 +56,7 @@ export const GRUPOS_NAVEGACAO: GrupoNavegacao[] = [
         para: "/equipe",
         rotulo: "Advogados & cargas",
         icone: Users,
-        perfis: ["admin"],
+        perfis: ["admin", "advogado"],
       },
     ],
   },

@@ -1,0 +1,1 @@
+create index anexos_tarefa_idx on public.anexos (tarefa_id)

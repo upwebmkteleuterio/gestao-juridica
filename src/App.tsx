@@ -56,7 +56,9 @@ const App = () => (
               <Route path="/djen" element={<DjenMonitor />} />
               <Route path="/djen/nova-consulta" element={<DjenMonitor />} />
               <Route path="/djen/payload/:id" element={<DjenMonitor />} />
-              <Route path="/equipe" element={<Equipe />} />
+            </Route>
+            <Route path="/equipe" element={<Equipe />} />
+            <Route element={<ProtectedRoute somenteAdmin />}>
               <Route path="/equipe/novo" element={<Equipe />} />
               <Route path="/equipe/advogado/:id" element={<Equipe />} />
             </Route>

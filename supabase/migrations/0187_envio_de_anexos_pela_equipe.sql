@@ -1,0 +1,1 @@
+create policy anexos_insert_autenticado on public.anexos for insert to authenticated with check (true)

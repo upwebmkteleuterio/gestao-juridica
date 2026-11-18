@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { ArchiveRestore, ExternalLink } from "lucide-react";
+import { ArchiveRestore } from "lucide-react";
 import { toast } from "sonner";
-import { Badge, Button, CopiarButton, DateRange, EmptyState, ErrorState, Panel, PanelHeader, PessoaTag, Select, Skeleton } from "@/components/kit";
+import { Badge, Button, CopiarButton, DateRange, EmptyState, ErrorState, ListaAnexos, Panel, PanelHeader, PessoaTag, Select, Skeleton } from "@/components/kit";
 import { useArquivadas, useDesarquivarTarefa, useRegistrarEvento, useUsuarioAtual } from "@/hooks";
 import { diaISO, hojeISO, somarDias } from "@/lib/datas";
-import { formatarData, formatarDataHora, formatarNumeroProcesso } from "@/lib/format";
-import { obterUrlComprovante } from "@/services";
+import { formatarData, formatarDataHora } from "@/lib/format";
+import { exibirNumeroProcesso } from "@/lib/numeracao";
 import type { Advogado, ConsultaArquivados, ID, TarefaPrazo } from "@/types";
 
 interface ArquivadosTabProps {
@@ -60,15 +60,6 @@ export function ArquivadosTab({ responsavelId, advogados }: ArquivadosTabProps) 
     }
   }
 
-  async function abrirComprovante(caminho: string) {
-    try {
-      const url = await obterUrlComprovante(caminho);
-      window.open(url, "_blank", "noopener");
-    } catch (erro) {
-      toast.error(erro instanceof Error ? erro.message : "Não foi possível abrir o comprovante.");
-    }
-  }
-
   function voltarAosUltimos30() {
     setPeriodo("30");
     setDePersonalizado(somarDias(hojeISO(), -29));
@@ -97,7 +88,7 @@ export function ArquivadosTab({ responsavelId, advogados }: ArquivadosTabProps) 
               {tarefas.map((tarefa) => (
                 <li key={tarefa.id} className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3 p-4">
                   <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-1"><strong className="text-[11px] tabular-nums">{formatarNumeroProcesso(tarefa.numero_processo)}</strong><CopiarButton valor={formatarNumeroProcesso(tarefa.numero_processo)} rotulo="Copiar número do processo" mensagem="Número do processo copiado." /></div>
+                    <div className="flex flex-wrap items-center gap-1"><strong className="text-[11px] tabular-nums">{exibirNumeroProcesso(tarefa.numero_processo, tarefa.tipo_numeracao)}</strong><CopiarButton valor={tarefa.numero_processo} rotulo="Copiar número do processo" mensagem="Número do processo copiado." /></div>
                     <p className="text-[11px] font-medium">{tarefa.tipo_peca}</p>
                     <p className="text-[10px] text-muted-foreground">{tarefa.partes_resumo || "—"}</p>
                   </div>
@@ -106,8 +97,8 @@ export function ArquivadosTab({ responsavelId, advogados }: ArquivadosTabProps) 
                     <div><span className="label-kit">Data fatal</span><p>{formatarData(tarefa.data_fatal)}</p></div>
                     <div><span className="label-kit">Arquivado em</span><p>{formatarDataHora(tarefa.arquivado_em)}</p></div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {tarefa.recibo_protocolo_url ? <Button variant="secondary" size="sm" onClick={() => void abrirComprovante(tarefa.recibo_protocolo_url!)}><ExternalLink className="h-3 w-3" aria-hidden="true" />Abrir comprovante</Button> : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ListaAnexos vinculo={{ tarefa_id: tarefa.id }} rotulo="arquivados" />
                     <Button variant="secondary" size="sm" loading={desarquivar.isPending} onClick={() => void restaurar(tarefa)}><ArchiveRestore className="h-3 w-3" aria-hidden="true" />Restaurar</Button>
                   </div>
                 </li>

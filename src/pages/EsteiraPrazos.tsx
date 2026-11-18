@@ -8,6 +8,7 @@ import {
   Button,
   EmptyState,
   FormField,
+  Input,
   PageHeading,
   Panel,
   PanelHeader,
@@ -18,8 +19,10 @@ import {
   KanbanBoard,
   PrazoManualModal,
 } from "@/components/esteira";
-import { useAdvogados, useAdvogadosVisiveis, useEsteira, useUsuarioAtual } from "@/hooks";
+import { useAdvogados, useAdvogadosVisiveis, useConsultaResponsavel, useEsteira, useUsuarioAtual } from "@/hooks";
 import { formatarNumeroProcesso } from "@/lib/format";
+import { exibirNumeroProcesso } from "@/lib/numeracao";
+import { anexosService } from "@/services";
 import { useUiStore } from "@/store";
 import type { EtapaKanban, ID, TarefaPrazo, UrgenciaEsteira } from "@/types";
 import { Archive } from "lucide-react";
@@ -56,6 +59,8 @@ export default function EsteiraPrazos() {
   const aba = useUiStore((estado) => estado.abaEsteira);
   const setAbaEsteira = useUiStore((estado) => estado.setAbaEsteira);
   const [tarefaParaArquivar, setTarefaParaArquivar] = useState<TarefaPrazo | null>(null);
+  const [numeroBusca, setNumeroBusca] = useState("");
+  const consultaResponsavel = useConsultaResponsavel(numeroBusca);
 
   useEffect(() => {
     if (esteiraIniciada || !usuario) return;
@@ -83,11 +88,19 @@ export default function EsteiraPrazos() {
    * Solta o card na coluna de destino: a posição vertical escolhida no arraste
    * define a ordem manual da coluna (e a troca de etapa, quando houver).
    */
-  function soltar(tarefa: TarefaPrazo, etapa: EtapaKanban, idsOrdenados: ID[]) {
-    if (etapa === "concluido" && !tarefa.recibo_protocolo_url && tarefa.etapa_kanban !== "concluido") {
-      toast.warning("Anexe o comprovante de protocolo para concluir a tarefa.");
-      navigate(`/esteira/tarefa/${tarefa.id}`);
-      return;
+  async function soltar(tarefa: TarefaPrazo, etapa: EtapaKanban, idsOrdenados: ID[]) {
+    if (etapa === "concluido" && tarefa.etapa_kanban !== "concluido") {
+      try {
+        const anexos = await anexosService.listar({ tarefa_id: tarefa.id });
+        if (anexos.length === 0) {
+          toast.warning("Anexe pelo menos um comprovante de protocolo para concluir a tarefa.");
+          navigate(`/esteira/tarefa/${tarefa.id}`);
+          return;
+        }
+      } catch (erro) {
+        toast.error(erro instanceof Error ? erro.message : "Não foi possível conferir os anexos da tarefa.");
+        return;
+      }
     }
     reordenar.mutate(
       { etapa, ids: idsOrdenados },
@@ -196,6 +209,25 @@ export default function EsteiraPrazos() {
             Faixas: crítico &lt; 48h; semana = fatais nos próximos 7 dias; em dia = sem urgência no horizonte.
           </p>
           </div>
+        </div>
+      </Panel>
+
+      <Panel>
+        <PanelHeader titulo="Consultar responsável por processo" descricao="Pesquise pelo número para ver quem está com o prazo e em que etapa ele está." />
+        <div className="space-y-3 p-5">
+          <FormField label="Número do processo" htmlFor="consulta-responsavel-numero">
+            <Input id="consulta-responsavel-numero" value={numeroBusca} onChange={(evento) => setNumeroBusca(evento.target.value)} placeholder="Digite o número do processo" />
+          </FormField>
+          {numeroBusca.replace(/[^0-9A-Za-z]/g, "").length < 2 ? <p className="text-[10px] text-muted-foreground">Digite ao menos 2 caracteres para consultar.</p> : null}
+          {consultaResponsavel.isLoading ? <p className="text-[10px] text-muted-foreground">Consultando…</p> : null}
+          {consultaResponsavel.isError ? <Alert severidade="danger" titulo="Não foi possível consultar o número." /> : null}
+          {consultaResponsavel.data?.length === 0 ? <p className="text-[10px] text-muted-foreground">Nenhum prazo encontrado para esse número.</p> : null}
+          {consultaResponsavel.data?.map((tarefa) => (
+            <div key={tarefa.id} className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-border p-3 text-[11px]">
+              <div><strong>{exibirNumeroProcesso(tarefa.numero_processo, tarefa.tipo_numeracao)}</strong><p className="text-muted-foreground">Responsável: {advogados?.find((advogado) => advogado.id === tarefa.advogado_id)?.nome_completo ?? "Não atribuído"}</p></div>
+              <Badge variant="neutral">{ROTULOS_ETAPA[tarefa.etapa_kanban]}{tarefa.arquivado_em ? " · Arquivado" : ""}</Badge>
+            </div>
+          ))}
         </div>
       </Panel>
 

@@ -1,4 +1,5 @@
 export * from "./useTheme";
+export * from "./useAnexos";
 export * from "./useOverlay";
 export * from "./useDebounce";
 export * from "./useAdvogados";

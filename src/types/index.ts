@@ -1,4 +1,5 @@
 export * from "./consulta";
+export * from "./anexo";
 export * from "./common";
 export * from "./advogado";
 export * from "./intimacaoDjenRaw";

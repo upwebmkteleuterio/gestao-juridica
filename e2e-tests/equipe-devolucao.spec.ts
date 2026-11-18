@@ -12,6 +12,9 @@ import {
   type MembroTeste,
 } from "./fixtures/conta-teste";
 
+// O provisionamento de dois usuários de teste e o login podem ser lentos.
+test.describe.configure({ timeout: 180_000 });
+
 let conta: ContaTeste;
 let membro: MembroTeste;
 let numero: string;
@@ -53,7 +56,11 @@ test("a equipe mostra Gabriel e permite devolver a carga de um advogado", async 
   ).toBeVisible();
 
   // O advogado de teste aparece com a carga e o botão de devolução.
-  await page.getByRole("button", { name: "Devolver 1 ao painel" }).click();
+  // O botão é escopado ao card dele: outros membros podem ter a mesma carga.
+  await page
+    .getByTestId(`equipe-advogado-${membro.id}`)
+    .getByRole("button", { name: "Devolver 1 ao painel" })
+    .click();
 
   const confirmacao = page.getByRole("dialog", {
     name: "Devolver as intimações ao painel de gestor?",

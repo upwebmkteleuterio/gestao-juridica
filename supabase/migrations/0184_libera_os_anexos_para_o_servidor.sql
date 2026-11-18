@@ -1,0 +1,1 @@
+grant select, insert, update, delete on public.anexos to service_role

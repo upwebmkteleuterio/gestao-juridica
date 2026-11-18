@@ -91,6 +91,14 @@ export function useTarefasPorAdvogado(advogadoId?: string) {
   });
 }
 
+export function useConsultaResponsavel(numero: string) {
+  return useQuery({
+    queryKey: ["tarefas-prazos", "numero", numero],
+    queryFn: () => tarefasPrazosService.buscarPorNumero(numero),
+    enabled: numero.replace(/[^0-9A-Za-z]/g, "").length >= 2,
+  });
+}
+
 export function useCargaPorAdvogado() {
   return useQuery({
     queryKey: tarefasKeys.carga,

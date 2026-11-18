@@ -21,6 +21,7 @@ import {
   FormField,
   IconButton,
   Input,
+  ListaAnexos,
   Modal,
   Select,
   Skeleton,
@@ -529,6 +530,7 @@ export function DetalhePublicacaoPanel({
               <div>
                 <p className="label-kit mb-3">Observações</p>
                 <ObservacaoCell intimacaoId={intimacao.id} observacao={intimacao.observacoes} />
+                <div className="mt-4"><ListaAnexos vinculo={{ intimacao_id: intimacao.id }} rotulo="anexos da publicação" /></div>
               </div>
             </section>
           ) : (
@@ -818,7 +820,13 @@ export function DetalhePublicacaoPanel({
             </>
           )}
 
-          {intimacao.origem !== "manual" ? <div className="border-t border-border" /> : null}
+          {intimacao.origem !== "manual" ? (
+            <section className="space-y-4 border-t border-border pt-5">
+              <p className="label-kit">Observações e anexos</p>
+              <ObservacaoCell intimacaoId={intimacao.id} observacao={intimacao.observacoes} />
+              <ListaAnexos vinculo={{ intimacao_id: intimacao.id }} rotulo="anexos da publicação" />
+            </section>
+          ) : null}
 
           {/* Atribuição */}
           <section>

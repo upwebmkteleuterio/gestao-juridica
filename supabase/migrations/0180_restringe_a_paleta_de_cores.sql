@@ -1,0 +1,1 @@
+alter table public.tarefas_prazos add constraint tarefas_prazos_cor_check check (cor is null or cor in ('vermelho', 'laranja', 'amarelo', 'verde', 'azul', 'roxo'))

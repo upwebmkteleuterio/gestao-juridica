@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Archive, ArchiveRestore, ExternalLink, FileCheck2, Paperclip, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -13,14 +13,17 @@ import {
   EtapaBadge,
   FormField,
   Input,
+  ListaAnexos,
   Select,
   Skeleton,
   SlidePanel,
   Textarea,
 } from "@/components/kit";
-import { ETAPAS_KANBAN, enviarComprovante, obterUrlComprovante, removerComprovante } from "@/services";
-import { useAdvogados, useArquivarTarefa, useAtualizarTarefaPrazo, useDesarquivarTarefa, useEventosPorEntidade, useRegistrarEvento, useTarefaPrazo, useUsuarioAtual } from "@/hooks";
-import { formatarData, formatarDataHora, formatarNumeroProcesso } from "@/lib/format";
+import { ETAPAS_KANBAN } from "@/services";
+import { useAdvogados, useAnexos, useArquivarTarefa, useAtualizarTarefaPrazo, useDesarquivarTarefa, useEventosPorEntidade, useRegistrarEvento, useTarefaPrazo, useUsuarioAtual } from "@/hooks";
+import { formatarData, formatarDataHora } from "@/lib/format";
+import { exibirNumeroProcesso, TIPOS_NUMERACAO } from "@/lib/numeracao";
+import type { TipoNumeracao } from "@/types";
 import { horasAte } from "@/lib/datas";
 import type { EtapaKanban } from "@/types";
 
@@ -49,18 +52,17 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
   const tarefa = tarefaQuery.data;
   const { data: advogados } = useAdvogados();
   const eventosQuery = useEventosPorEntidade(tarefaId ?? undefined);
+  const anexosQuery = useAnexos(tarefaId ? { tarefa_id: tarefaId } : null);
   const atualizar = useAtualizarTarefaPrazo();
   const arquivar = useArquivarTarefa();
   const desarquivar = useDesarquivarTarefa();
   const registrarEvento = useRegistrarEvento();
-  const inputArquivo = useRef<HTMLInputElement>(null);
   const [linkMinuta, setLinkMinuta] = useState("");
   const [notas, setNotas] = useState("");
   const [etapa, setEtapa] = useState<EtapaKanban>("fila");
-  const [recibo, setRecibo] = useState("");
-  const [nomeArquivo, setNomeArquivo] = useState("");
-  const [enviandoComprovante, setEnviandoComprovante] = useState(false);
-  const [confirmacaoExterna, setConfirmacaoExterna] = useState(false);
+  const [cliente, setCliente] = useState("");
+  const [tipoNumeracao, setTipoNumeracao] = useState<TipoNumeracao>("cnj");
+  const [cor, setCor] = useState<"vermelho" | "laranja" | "amarelo" | "verde" | "azul" | "roxo" | null>(null);
   const [erroProtocolo, setErroProtocolo] = useState(false);
   const [confirmarArquivamento, setConfirmarArquivamento] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
@@ -70,9 +72,9 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
     setLinkMinuta(tarefa.link_minuta ?? "");
     setNotas(tarefa.notas_internas ?? "");
     setEtapa(tarefa.etapa_kanban);
-    setRecibo(tarefa.recibo_protocolo_url ?? "");
-    setNomeArquivo("");
-    setConfirmacaoExterna(false);
+    setCliente(tarefa.cliente ?? "");
+    setTipoNumeracao(tarefa.tipo_numeracao);
+    setCor(tarefa.cor);
     setErroProtocolo(false);
   }, [tarefa]);
 
@@ -96,43 +98,11 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
       ? "Prazo vencido"
       : `${horasRestantes}h restantes`;
 
-  async function selecionarArquivo(arquivo?: File) {
-    if (!arquivo || !tarefa) return;
-    if (arquivo.type !== "application/pdf" && !arquivo.name.toLowerCase().endsWith(".pdf")) {
-      toast.error("O comprovante deve estar em formato PDF.");
-      return;
-    }
-    if (arquivo.size > 10 * 1024 * 1024) {
-      toast.error("O comprovante deve ter no máximo 10 MB.");
-      return;
-    }
-    setEnviandoComprovante(true);
-    try {
-      const caminho = await enviarComprovante(tarefa.id, arquivo);
-      setRecibo(caminho);
-      setNomeArquivo(arquivo.name);
-      setErroProtocolo(false);
-    } catch (erro) {
-      toast.error(erro instanceof Error ? erro.message : "Não foi possível enviar o comprovante.");
-    } finally {
-      setEnviandoComprovante(false);
-    }
-  }
-
-  async function abrirComprovante() {
-    try {
-      const url = await obterUrlComprovante(recibo);
-      window.open(url, "_blank", "noopener");
-    } catch (erro) {
-      toast.error(erro instanceof Error ? erro.message : "Não foi possível abrir o comprovante.");
-    }
-  }
-
   async function salvar() {
     if (!tarefa) return;
-    if (etapa === "concluido" && !recibo && !confirmacaoExterna) {
+    if (etapa === "concluido" && (anexosQuery.isLoading || !(anexosQuery.data?.length))) {
       setErroProtocolo(true);
-      toast.error("Anexe o comprovante de protocolo ou confirme a validação externa para concluir.");
+      toast.error("Anexe pelo menos um comprovante de protocolo para concluir.");
       return;
     }
 
@@ -141,13 +111,17 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
       link_minuta: tarefa.link_minuta,
       notas_internas: tarefa.notas_internas,
       etapa_kanban: tarefa.etapa_kanban,
-      recibo_protocolo_url: tarefa.recibo_protocolo_url,
+      cliente: tarefa.cliente,
+      tipo_numeracao: tarefa.tipo_numeracao,
+      cor: tarefa.cor,
     });
     const depois = JSON.stringify({
       link_minuta: linkMinuta.trim() || null,
       notas_internas: notas.trim() || null,
       etapa_kanban: etapa,
-      recibo_protocolo_url: recibo || null,
+      cliente: cliente.trim() || null,
+      tipo_numeracao: tipoNumeracao,
+      cor,
     });
 
     try {
@@ -157,16 +131,11 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
           link_minuta: linkMinuta.trim() || null,
           notas_internas: notas.trim() || null,
           etapa_kanban: etapa,
-          recibo_protocolo_url: recibo || null,
+          cliente: cliente.trim() || null,
+          tipo_numeracao: tipoNumeracao,
+          cor,
         },
       });
-      if (tarefa.recibo_protocolo_url && !recibo) {
-        try {
-          await removerComprovante(tarefa.recibo_protocolo_url);
-        } catch {
-          toast.warning("A tarefa foi salva, mas não foi possível excluir o comprovante do armazenamento.");
-        }
-      }
       await registrarEvento.mutateAsync({
         entidade: "tarefa",
         entidade_id: tarefa.id,
@@ -231,7 +200,7 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
       open={Boolean(tarefaId)}
       onClose={onClose}
       eyebrow="Execução da tarefa · Tela 2.1"
-      titulo={tarefa ? formatarNumeroProcesso(tarefa.numero_processo) : "Carregando tarefa…"}
+      titulo={tarefa ? exibirNumeroProcesso(tarefa.numero_processo, tarefa.tipo_numeracao) : "Carregando tarefa…"}
       badge={tarefa ? (
         <div className="flex flex-wrap items-center gap-2">
           <EtapaBadge etapa={tarefa.etapa_kanban} />
@@ -244,10 +213,10 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
         <div className="flex flex-wrap gap-2">
           {tarefa.etapa_kanban === "concluido" && !tarefa.arquivado_em ? <Button variant="secondary" onClick={() => setConfirmarArquivamento(true)}><Archive className="h-3.5 w-3.5" aria-hidden="true" />Arquivar tarefa</Button> : null}
           {tarefa.arquivado_em ? <Button variant="secondary" loading={desarquivar.isPending || registrarEvento.isPending} onClick={() => void restaurarTarefa()}><ArchiveRestore className="h-3.5 w-3.5" aria-hidden="true" />Restaurar no quadro</Button> : null}
-          <Button variant="primary" loading={atualizar.isPending || registrarEvento.isPending || enviandoComprovante} onClick={salvar}>
+          <Button variant="primary" loading={atualizar.isPending || registrarEvento.isPending} disabled={etapa === "concluido" && anexosQuery.isLoading} onClick={salvar}>
             Salvar e atualizar tarefa
           </Button>
-          <Button variant="secondary" onClick={onClose} disabled={atualizar.isPending || registrarEvento.isPending || enviandoComprovante}>
+          <Button variant="secondary" onClick={onClose} disabled={atualizar.isPending || registrarEvento.isPending}>
             Fechar sem salvar
           </Button>
         </div>
@@ -268,7 +237,8 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
           <section>
             <h3 className="mb-3 text-[12px] font-semibold">Resumo da demanda</h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-sm border border-border p-4 text-[10px]">
-              <div><dt className="text-muted-foreground">Processo</dt><dd className="mt-1 flex items-center gap-1 font-medium tabular-nums">{formatarNumeroProcesso(tarefa.numero_processo)}<CopiarButton valor={formatarNumeroProcesso(tarefa.numero_processo)} rotulo="Copiar número do processo" mensagem="Número do processo copiado." /></dd></div>
+              <div><dt className="text-muted-foreground">Processo</dt><dd className="mt-1 flex items-center gap-1 font-medium tabular-nums">{exibirNumeroProcesso(tarefa.numero_processo, tarefa.tipo_numeracao)}<CopiarButton valor={tarefa.numero_processo} rotulo="Copiar número do processo" mensagem="Número do processo copiado." /></dd></div>
+              <div><dt className="text-muted-foreground">Cliente</dt><dd className="mt-1 font-medium">{tarefa.cliente || "—"}</dd></div>
               <div><dt className="text-muted-foreground">Tribunal</dt><dd className="mt-1 font-medium">{tarefa.tribunal_sigla ?? "Manual"}</dd></div>
               <div><dt className="text-muted-foreground">Ação</dt><dd className="mt-1 font-medium">{tarefa.tipo_peca}</dd></div>
               <div><dt className="text-muted-foreground">Partes</dt><dd className="mt-1 font-medium">{tarefa.partes_resumo}</dd></div>
@@ -288,6 +258,23 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
 
           <section className="space-y-4">
             <h3 className="text-[12px] font-semibold">Execução e protocolo</h3>
+            <FormField label="Tipo de numeração" htmlFor="tarefa-tipo-numeracao">
+              <Select id="tarefa-tipo-numeracao" value={tipoNumeracao} onChange={(evento) => setTipoNumeracao(evento.target.value as TipoNumeracao)}>
+                {TIPOS_NUMERACAO.map((opcao) => <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>)}
+              </Select>
+            </FormField>
+            <FormField label="Cliente" htmlFor="tarefa-cliente">
+              <Input id="tarefa-cliente" value={cliente} onChange={(evento) => setCliente(evento.target.value)} />
+            </FormField>
+            <FormField label="Cor da tarefa" hint="A cor aparece no topo do card, sem substituir o indicador de prazo.">
+              <div className="flex flex-wrap items-center gap-2">
+                {(["vermelho", "laranja", "amarelo", "verde", "azul", "roxo"] as const).map((tom) => {
+                  const classes = { vermelho: "bg-red-500", laranja: "bg-orange-500", amarelo: "bg-yellow-400", verde: "bg-green-500", azul: "bg-blue-500", roxo: "bg-purple-500" };
+                  return <button key={tom} type="button" aria-label={`Cor ${tom}`} aria-pressed={cor === tom} onClick={() => setCor(cor === tom ? null : tom)} className={`h-7 w-7 rounded-full border-2 ${classes[tom]} ${cor === tom ? "border-foreground ring-2 ring-info ring-offset-2" : "border-transparent"}`} />;
+                })}
+                <Button type="button" variant="ghost" size="sm" onClick={() => setCor(null)}>Limpar cor</Button>
+              </div>
+            </FormField>
             <FormField label="Link da minuta" htmlFor="tarefa-link-minuta" hint="Google Docs / OneDrive / Word Online">
               <Input id="tarefa-link-minuta" type="url" value={linkMinuta} onChange={(evento) => setLinkMinuta(evento.target.value)} placeholder="https://" />
             </FormField>
@@ -299,37 +286,10 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
                 {ETAPAS_KANBAN.map((item) => <option key={item} value={item}>{ROTULOS_ETAPA[item]}</option>)}
               </Select>
             </FormField>
-            <FormField label="Comprovante de protocolo" htmlFor="tarefa-comprovante">
-              <input ref={inputArquivo} id="tarefa-comprovante" type="file" accept="application/pdf" className="sr-only" onChange={(evento) => { const arquivo = evento.target.files?.[0]; evento.target.value = ""; void selecionarArquivo(arquivo); }} />
-              <Button type="button" variant="secondary" loading={enviandoComprovante} onClick={() => inputArquivo.current?.click()}>
-                <Paperclip className="h-3.5 w-3.5" aria-hidden="true" />
-                Anexar comprovante (PDF)
-              </Button>
-              {recibo ? (
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]">
-                  <FileCheck2 className="h-3.5 w-3.5 text-success" aria-hidden="true" />
-                  {nomeArquivo ? <span>{nomeArquivo}</span> : <Button type="button" variant="link" size="sm" onClick={abrirComprovante}>Abrir comprovante</Button>}
-                  <Button type="button" variant="ghost" size="sm" onClick={() => { setRecibo(""); setNomeArquivo(""); }} aria-label="Remover comprovante">
-                    <Trash2 className="h-3 w-3" aria-hidden="true" /> Remover
-                  </Button>
-                </div>
-              ) : null}
+            <FormField label="Comprovante de protocolo" error={erroProtocolo ? "Anexe pelo menos um comprovante de protocolo para concluir." : undefined}>
+              <ListaAnexos vinculo={{ tarefa_id: tarefa.id }} rotulo="comprovantes" />
             </FormField>
-            {etapa === "concluido" ? (
-              <>
-                <Alert severidade="warning" titulo="Validação necessária">
-                  Para concluir a tarefa, anexe o comprovante do protocolo ou confirme que a validação foi realizada externamente.
-                </Alert>
-                {!recibo ? (
-                  <FormField error={erroProtocolo ? "Anexe o comprovante de protocolo ou confirme a validação externa para concluir." : undefined}>
-                    <label className="flex items-start gap-2 text-[10px]">
-                      <Checkbox checked={confirmacaoExterna} onChange={(evento) => { setConfirmacaoExterna(evento.target.checked); if (evento.target.checked) setErroProtocolo(false); }} />
-                      <span>Confirmo que o protocolo foi validado externamente</span>
-                    </label>
-                  </FormField>
-                ) : null}
-              </>
-            ) : null}
+            {etapa === "concluido" ? <Alert severidade="warning" titulo="Anexo obrigatório">Para concluir, a tarefa precisa ter pelo menos um anexo.</Alert> : null}
           </section>
 
           <section>

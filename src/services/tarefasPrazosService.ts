@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { diasAte } from "@/lib/format";
+import { normalizarNumero } from "@/lib/numeracao";
 import { slaDeDataFatal } from "@/lib/sla";
 import type {
   AdvogadoCarga,
@@ -18,7 +19,7 @@ import { mensagemDeErro } from "./erros";
 import { criarRepositorioSupabase } from "./repositorioSupabase";
 
 export const ETAPAS_KANBAN: EtapaKanban[] = ["fila", "redacao", "revisao", "pronto_protocolo", "concluido"];
-const COLUNAS = "id, origem, intimacao_id, advogado_id, numero_processo, partes_resumo, tipo_peca, data_fatal, etapa_kanban, link_minuta, notas_internas, recibo_protocolo_url, data_ciencia, concluido_em, ordem_kanban, arquivado_em, dias_prazo, tipo_contagem_prazo, created_at, updated_at";
+const COLUNAS = "id, origem, intimacao_id, advogado_id, numero_processo, tipo_numeracao, cliente, cor, partes_resumo, tipo_peca, data_fatal, etapa_kanban, link_minuta, notas_internas, recibo_protocolo_url, data_ciencia, concluido_em, ordem_kanban, arquivado_em, dias_prazo, tipo_contagem_prazo, created_at, updated_at";
 const COLUNAS_EMBED = `${COLUNAS}, intimacoes(tribunal_sigla, data_disponibilizacao, created_at)`;
 const repositorio = criarRepositorioSupabase<TarefaPrazo, TarefaPrazoInput>({
   tabela: "tarefas_prazos",
@@ -167,6 +168,14 @@ export const tarefasPrazosService = {
     const { data, error } = await supabase.from("tarefas_prazos").select(COLUNAS).eq("advogado_id", advogado_id);
     if (error) throw new Error(mensagemDeErro(error));
     return ((data ?? []) as unknown as TarefaPrazo[]).map(normalizar);
+  },
+
+  async buscarPorNumero(numero: string): Promise<TarefaPrazo[]> {
+    const { data, error } = await supabase.from("tarefas_prazos").select(COLUNAS_EMBED);
+    if (error) throw new Error(mensagemDeErro(error));
+    const chave = normalizarNumero(numero);
+    return ((data ?? []) as unknown as TarefaComIntimacao[]).map(comTribunal)
+      .filter((tarefa) => normalizarNumero(tarefa.numero_processo) === chave);
   },
 
   async cargaPorAdvogado(): Promise<Record<ID, number>> {

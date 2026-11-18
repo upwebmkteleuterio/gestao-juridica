@@ -5,7 +5,8 @@ import {
   IconButton,
   PessoaTag,
 } from "@/components/kit";
-import { formatarData, formatarNumeroProcesso } from "@/lib/format";
+import { formatarData } from "@/lib/format";
+import { exibirNumeroProcesso, seloTipoNumeracao } from "@/lib/numeracao";
 import { slaDeDataFatal } from "@/lib/sla";
 import type { TarefaPrazo } from "@/types";
 
@@ -37,6 +38,15 @@ export function KanbanCard({
 }: KanbanCardProps) {
   const sigla = tarefa.tribunal_sigla;
   const tone = slaDeDataFatal(tarefa.data_fatal).tone;
+  const numeroExibido = exibirNumeroProcesso(tarefa.numero_processo, tarefa.tipo_numeracao);
+  const cores: Record<NonNullable<TarefaPrazo["cor"]>, string> = {
+    vermelho: "bg-red-500",
+    laranja: "bg-orange-500",
+    amarelo: "bg-yellow-400",
+    verde: "bg-green-500",
+    azul: "bg-blue-500",
+    roxo: "bg-purple-500",
+  };
 
   return (
     <div className="relative group">
@@ -50,22 +60,23 @@ export function KanbanCard({
         onDragStart();
       }}
       onDragEnd={onDragEnd}
-      className={`w-full cursor-pointer rounded-sm border border-border border-l-4 bg-card p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info ${BORDA_SLA[tone]} ${arrastando ? "scale-[0.98] opacity-50" : ""}`}
-      aria-label={`Abrir tarefa ${tarefa.tipo_peca}, processo ${formatarNumeroProcesso(tarefa.numero_processo)}`}
+      className={`relative w-full cursor-pointer overflow-hidden rounded-sm border border-border border-l-4 bg-card p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info ${BORDA_SLA[tone]} ${arrastando ? "scale-[0.98] opacity-50" : ""}`}
+      aria-label={`Abrir tarefa ${tarefa.tipo_peca}, processo ${numeroExibido}`}
     >
+      {tarefa.cor ? <span aria-hidden="true" className={`absolute inset-x-0 top-0 h-1 ${cores[tarefa.cor]}`} /> : null}
       <div className="flex min-w-0 items-center justify-between gap-2">
         <DeadlineBadge dataFatal={tarefa.data_fatal} />
-        {tarefa.origem === "manual" && !sigla ? (
-          <Badge variant="gold">Manual</Badge>
-        ) : sigla ? (
-          <Badge variant="neutral">{sigla}</Badge>
-        ) : null}
+        <div className="flex min-w-0 items-center gap-1">
+          {tarefa.tipo_numeracao !== "cnj" ? <Badge variant="info">{seloTipoNumeracao(tarefa.tipo_numeracao)}</Badge> : null}
+          {tarefa.origem === "manual" && !sigla ? <Badge variant="gold">Manual</Badge> : sigla ? <Badge variant="neutral">{sigla}</Badge> : null}
+        </div>
       </div>
+      {tarefa.cliente?.trim() ? <strong className="mt-2 block truncate text-[12px] font-bold text-navy-800 dark:text-gold-400">{tarefa.cliente}</strong> : null}
       <strong className="mt-2 line-clamp-2 block min-h-8 text-[12px] font-semibold leading-4">
         {tarefa.tipo_peca}
       </strong>
-      <div className="mt-2 flex min-w-0 items-baseline gap-2 text-[10px]">
-        <span className="shrink-0 font-medium tabular-nums">{formatarNumeroProcesso(tarefa.numero_processo)}</span>
+      <div className="mt-2 flex min-w-0 flex-col gap-0.5 text-[10px]">
+        <span className="truncate font-medium tabular-nums">{numeroExibido}</span>
         <span className="truncate text-muted-foreground">{tarefa.partes_resumo}</span>
       </div>
       <div className="mt-3 flex min-w-0 items-center justify-between gap-2 border-t border-border pt-2">

@@ -1,0 +1,1 @@
+create index anexos_intimacao_idx on public.anexos (intimacao_id)

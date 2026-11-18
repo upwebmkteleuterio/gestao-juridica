@@ -1,0 +1,1 @@
+create policy anexos_delete_autenticado on public.anexos for delete to authenticated using (true)

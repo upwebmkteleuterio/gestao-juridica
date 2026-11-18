@@ -14,6 +14,8 @@ import {
 import { useAdvogadosVisiveis, useCriarTarefaPrazo, useUsuarioAtual } from "@/hooks";
 import { calcularDataFatal, type TipoContagemPrazo } from "@/lib/prazos";
 import { cnjValido, mascararCnj } from "@/lib/format";
+import { TIPOS_NUMERACAO } from "@/lib/numeracao";
+import type { TipoNumeracao } from "@/types";
 import { useUiStore } from "@/store";
 
 export interface PrazoManualModalProps {
@@ -23,6 +25,8 @@ export interface PrazoManualModalProps {
 
 type Campos = {
   numero_processo: string;
+  tipo_numeracao: TipoNumeracao;
+  cliente: string;
   tribunal: string;
   partes_resumo: string;
   tipo_peca: string;
@@ -38,6 +42,8 @@ type Erros = Partial<Record<keyof Campos, string>>;
 
 const CAMPOS_INICIAIS: Campos = {
   numero_processo: "",
+  tipo_numeracao: "cnj",
+  cliente: "",
   tribunal: "",
   partes_resumo: "",
   tipo_peca: "",
@@ -68,8 +74,11 @@ export function PrazoManualModal({ open, onClose }: PrazoManualModalProps) {
   useEffect(() => {
     if (!open) return;
     const valor = rascunho;
+    const tipoNumeracao = (valor.tipo_numeracao as TipoNumeracao) || "cnj";
     setCampos({
-      numero_processo: mascararCnj(textoRascunho(valor.numero_processo)),
+      numero_processo: tipoNumeracao === "cnj" ? mascararCnj(textoRascunho(valor.numero_processo)) : textoRascunho(valor.numero_processo),
+      tipo_numeracao: tipoNumeracao,
+      cliente: textoRascunho(valor.cliente),
       tribunal: textoRascunho(valor.tribunal),
       partes_resumo: textoRascunho(valor.partes_resumo),
       tipo_peca: textoRascunho(valor.tipo_peca),
@@ -117,7 +126,9 @@ export function PrazoManualModal({ open, onClose }: PrazoManualModalProps) {
 
   function validar(): Erros {
     const novos: Erros = {};
-    if (!cnjValido(campos.numero_processo)) novos.numero_processo = "Informe o número no padrão CNJ (0000000-00.0000.0.00.0000).";
+    if (campos.tipo_numeracao === "cnj" ? !cnjValido(campos.numero_processo) : campos.numero_processo.trim().length < 2) {
+      novos.numero_processo = campos.tipo_numeracao === "cnj" ? "Informe um número CNJ com 20 dígitos." : "Informe o número do processo ou procedimento.";
+    }
     if (!campos.partes_resumo.trim()) novos.partes_resumo = "Informe o nome das partes.";
     if (!campos.tipo_peca.trim()) novos.tipo_peca = "Informe a ação ou tipo de peça.";
     if (!campos.data_ciencia) novos.data_ciencia = "Informe a data de ciência.";
@@ -136,7 +147,10 @@ export function PrazoManualModal({ open, onClose }: PrazoManualModalProps) {
         origem: "manual",
         intimacao_id: null,
         advogado_id: campos.advogado_id,
-        numero_processo: campos.numero_processo,
+        numero_processo: campos.tipo_numeracao === "cnj" ? campos.numero_processo : campos.numero_processo,
+        tipo_numeracao: campos.tipo_numeracao,
+        cliente: campos.cliente.trim() || null,
+        cor: null,
         partes_resumo: campos.partes_resumo.trim(),
         tipo_peca: campos.tipo_peca.trim(),
         data_fatal: campos.data_fatal || null,
@@ -186,8 +200,20 @@ export function PrazoManualModal({ open, onClose }: PrazoManualModalProps) {
           <Alert severidade="warning" titulo="Nenhum advogado cadastrado para atribuição." />
         ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="Número do processo (CNJ)" htmlFor="prazo-cnj" required error={erros.numero_processo}>
-            <Input id="prazo-cnj" value={campos.numero_processo} onChange={(evento) => alterar("numero_processo", mascararCnj(evento.target.value))} placeholder="0000000-00.0000.0.00.0000" aria-invalid={Boolean(erros.numero_processo) || undefined} />
+          <FormField label="Tipo de numeração" htmlFor="prazo-tipo-numeracao" required error={erros.tipo_numeracao} hint="Defina o tipo antes de digitar: ele fica registrado e aparece na listagem.">
+            <Select id="prazo-tipo-numeracao" value={campos.tipo_numeracao} onChange={(evento) => {
+              const tipo = evento.target.value as TipoNumeracao;
+              alterar("tipo_numeracao", tipo);
+              if (tipo === "cnj") alterar("numero_processo", mascararCnj(campos.numero_processo));
+            }} aria-invalid={Boolean(erros.tipo_numeracao) || undefined}>
+              {TIPOS_NUMERACAO.map((opcao) => <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>)}
+            </Select>
+          </FormField>
+          <FormField label={campos.tipo_numeracao === "cnj" ? "Número do processo (CNJ)" : "Número do processo / procedimento"} htmlFor="prazo-cnj" required error={erros.numero_processo} hint={campos.tipo_numeracao === "cnj" ? "A máscara do padrão CNJ é aplicada automaticamente (20 dígitos)." : "Digite como está no documento — letras, pontos, barras e traços são aceitos."}>
+            <Input id="prazo-cnj" value={campos.numero_processo} onChange={(evento) => alterar("numero_processo", campos.tipo_numeracao === "cnj" ? mascararCnj(evento.target.value) : evento.target.value)} placeholder={campos.tipo_numeracao === "cnj" ? "0000000-00.0000.0.00.0000" : "Ex.: 12345.000123/2024-11"} inputMode={campos.tipo_numeracao === "cnj" ? "numeric" : "text"} autoComplete="off" aria-invalid={Boolean(erros.numero_processo) || undefined} />
+          </FormField>
+          <FormField label="Cliente" htmlFor="prazo-cliente">
+            <Input id="prazo-cliente" value={campos.cliente} onChange={(evento) => alterar("cliente", evento.target.value)} />
           </FormField>
           <FormField label="Tribunal / comarca" htmlFor="prazo-tribunal">
             <Input id="prazo-tribunal" value={campos.tribunal} onChange={(evento) => alterar("tribunal", evento.target.value)} />

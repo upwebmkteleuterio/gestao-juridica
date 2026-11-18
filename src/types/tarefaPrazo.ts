@@ -5,6 +5,7 @@ import type {
   ID,
   ISODate,
   OrigemTarefa,
+  TipoNumeracao,
 } from "./common";
 
 /**
@@ -17,6 +18,9 @@ export interface TarefaPrazo {
   intimacao_id: ID | null;
   advogado_id: ID;
   numero_processo: string;
+  tipo_numeracao: TipoNumeracao;
+  cliente: string | null;
+  cor: "vermelho" | "laranja" | "amarelo" | "verde" | "azul" | "roxo" | null;
   partes_resumo: string;
   tipo_peca: string;
   data_fatal: DateOnly | null;

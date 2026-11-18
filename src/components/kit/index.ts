@@ -12,6 +12,7 @@ export * from "./EmptyState";
 export * from "./FormField";
 export * from "./Headings";
 export * from "./Input";
+export * from "./ListaAnexos";
 export * from "./MenuAcoes";
 export * from "./Modal";
 export * from "./SegmentedControl";

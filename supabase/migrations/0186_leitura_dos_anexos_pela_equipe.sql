@@ -1,0 +1,1 @@
+create policy anexos_select_autenticado on public.anexos for select to authenticated using (true)
