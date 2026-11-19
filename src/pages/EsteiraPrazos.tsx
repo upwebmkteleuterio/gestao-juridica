@@ -22,7 +22,6 @@ import {
 import { useAdvogados, useAdvogadosVisiveis, useConsultaResponsavel, useEsteira, useUsuarioAtual } from "@/hooks";
 import { formatarNumeroProcesso } from "@/lib/format";
 import { exibirNumeroProcesso } from "@/lib/numeracao";
-import { anexosService } from "@/services";
 import { useUiStore } from "@/store";
 import type { EtapaKanban, ID, TarefaPrazo, UrgenciaEsteira } from "@/types";
 import { Archive } from "lucide-react";
@@ -89,19 +88,6 @@ export default function EsteiraPrazos() {
    * define a ordem manual da coluna (e a troca de etapa, quando houver).
    */
   async function soltar(tarefa: TarefaPrazo, etapa: EtapaKanban, idsOrdenados: ID[]) {
-    if (etapa === "concluido" && tarefa.etapa_kanban !== "concluido") {
-      try {
-        const anexos = await anexosService.listar({ tarefa_id: tarefa.id });
-        if (anexos.length === 0) {
-          toast.warning("Anexe pelo menos um comprovante de protocolo para concluir a tarefa.");
-          navigate(`/esteira/tarefa/${tarefa.id}`);
-          return;
-        }
-      } catch (erro) {
-        toast.error(erro instanceof Error ? erro.message : "Não foi possível conferir os anexos da tarefa.");
-        return;
-      }
-    }
     reordenar.mutate(
       { etapa, ids: idsOrdenados },
       {

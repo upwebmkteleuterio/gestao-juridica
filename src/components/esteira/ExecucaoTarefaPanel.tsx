@@ -20,7 +20,7 @@ import {
   Textarea,
 } from "@/components/kit";
 import { ETAPAS_KANBAN } from "@/services";
-import { useAdvogados, useAnexos, useArquivarTarefa, useAtualizarTarefaPrazo, useDesarquivarTarefa, useEventosPorEntidade, useRegistrarEvento, useTarefaPrazo, useUsuarioAtual } from "@/hooks";
+import { useAdvogados, useArquivarTarefa, useAtualizarTarefaPrazo, useDesarquivarTarefa, useEventosPorEntidade, useRegistrarEvento, useTarefaPrazo, useUsuarioAtual } from "@/hooks";
 import { formatarData, formatarDataHora } from "@/lib/format";
 import { exibirNumeroProcesso, TIPOS_NUMERACAO } from "@/lib/numeracao";
 import type { TipoNumeracao } from "@/types";
@@ -52,7 +52,6 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
   const tarefa = tarefaQuery.data;
   const { data: advogados } = useAdvogados();
   const eventosQuery = useEventosPorEntidade(tarefaId ?? undefined);
-  const anexosQuery = useAnexos(tarefaId ? { tarefa_id: tarefaId } : null);
   const atualizar = useAtualizarTarefaPrazo();
   const arquivar = useArquivarTarefa();
   const desarquivar = useDesarquivarTarefa();
@@ -63,7 +62,6 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
   const [cliente, setCliente] = useState("");
   const [tipoNumeracao, setTipoNumeracao] = useState<TipoNumeracao>("cnj");
   const [cor, setCor] = useState<"vermelho" | "laranja" | "amarelo" | "verde" | "azul" | "roxo" | null>(null);
-  const [erroProtocolo, setErroProtocolo] = useState(false);
   const [confirmarArquivamento, setConfirmarArquivamento] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
 
@@ -75,7 +73,6 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
     setCliente(tarefa.cliente ?? "");
     setTipoNumeracao(tarefa.tipo_numeracao);
     setCor(tarefa.cor);
-    setErroProtocolo(false);
   }, [tarefa]);
 
   useEffect(() => {
@@ -100,13 +97,6 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
 
   async function salvar() {
     if (!tarefa) return;
-    if (etapa === "concluido" && (anexosQuery.isLoading || !(anexosQuery.data?.length))) {
-      setErroProtocolo(true);
-      toast.error("Anexe pelo menos um comprovante de protocolo para concluir.");
-      return;
-    }
-
-    setErroProtocolo(false);
     const antes = JSON.stringify({
       link_minuta: tarefa.link_minuta,
       notas_internas: tarefa.notas_internas,
@@ -213,7 +203,7 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
         <div className="flex flex-wrap gap-2">
           {tarefa.etapa_kanban === "concluido" && !tarefa.arquivado_em ? <Button variant="secondary" onClick={() => setConfirmarArquivamento(true)}><Archive className="h-3.5 w-3.5" aria-hidden="true" />Arquivar tarefa</Button> : null}
           {tarefa.arquivado_em ? <Button variant="secondary" loading={desarquivar.isPending || registrarEvento.isPending} onClick={() => void restaurarTarefa()}><ArchiveRestore className="h-3.5 w-3.5" aria-hidden="true" />Restaurar no quadro</Button> : null}
-          <Button variant="primary" loading={atualizar.isPending || registrarEvento.isPending} disabled={etapa === "concluido" && anexosQuery.isLoading} onClick={salvar}>
+          <Button variant="primary" loading={atualizar.isPending || registrarEvento.isPending} onClick={salvar}>
             Salvar e atualizar tarefa
           </Button>
           <Button variant="secondary" onClick={onClose} disabled={atualizar.isPending || registrarEvento.isPending}>
@@ -286,10 +276,9 @@ export function ExecucaoTarefaPanel({ tarefaId, onClose }: ExecucaoTarefaPanelPr
                 {ETAPAS_KANBAN.map((item) => <option key={item} value={item}>{ROTULOS_ETAPA[item]}</option>)}
               </Select>
             </FormField>
-            <FormField label="Comprovante de protocolo" error={erroProtocolo ? "Anexe pelo menos um comprovante de protocolo para concluir." : undefined}>
+            <FormField label="Comprovantes de protocolo" hint="Opcional: anexe os prints do protocolo quando houver.">
               <ListaAnexos vinculo={{ tarefa_id: tarefa.id }} rotulo="comprovantes" />
             </FormField>
-            {etapa === "concluido" ? <Alert severidade="warning" titulo="Anexo obrigatório">Para concluir, a tarefa precisa ter pelo menos um anexo.</Alert> : null}
           </section>
 
           <section>
